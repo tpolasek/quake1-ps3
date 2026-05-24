@@ -153,16 +153,26 @@ SYSTEM IO
 ===============================================================================
 */
 
+static void Sys_ShowErrorModal(const char* msg) {
+    u32 flags = SDL_MESSAGEBOX_ERROR;
+    const char* title = PACKAGE_STRING;
+    SDL_Window* window = NULL;
+    SDL_ShowSimpleMessageBox(flags, title, msg, window);
+}
+
 void Sys_Error(char* error, ...) {
     va_list argptr;
-    printf("Sys_Error: ");
+    char string[1024];
+
     va_start(argptr, error);
-    vprintf(error, argptr);
+    vsprintf(string, error, argptr);
     va_end(argptr);
-    printf("\n");
+
+    fflush(stdout);
+    fprintf(stderr, "Error: %s\n", string);
+    Sys_ShowErrorModal(string);
 
     Host_Shutdown();
-
     exit(1);
 }
 
