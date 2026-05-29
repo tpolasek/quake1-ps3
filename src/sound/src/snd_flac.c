@@ -18,12 +18,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
+#include <FLAC/stream_decoder.h>
 #include "snd_flac.h"
 #include "console.h"
 #include "zone.h"
-#include <FLAC/stream_decoder.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct {
     FLAC__StreamDecoder* decoder;
@@ -73,7 +72,7 @@ static FLAC__StreamDecoderSeekStatus FLAC_Seek_f(
     const flacfile_t* ff = client_data;
     fshandle_t* fh = ff->file;
     const long offset = (long) absolute_byte_offset;
-    const i32 whence = SEEK_SET;
+    const int whence = SEEK_SET;
     if (Q_fseek(fh, offset, whence) < 0) {
         return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
     }
@@ -132,21 +131,21 @@ static FLAC__StreamDecoderWriteStatus FLAC_Write_f(
     if (ff->info->channels == 1) {
         u32 i;
         const i32* in = buffer[0];
-
         if (ff->info->bits == 8) {
             byte* out = ff->buffer;
-            for (i = 0; i < frame->header.blocksize; i++)
+            for (i = 0; i < frame->header.blocksize; i++) {
                 *out++ = (byte) (*in++ + 128);
+            }
         } else {
             i16* out = (i16*) ff->buffer;
-            for (i = 0; i < frame->header.blocksize; i++)
-                *out++ = (byte) *in++;
+            for (i = 0; i < frame->header.blocksize; i++) {
+                *out++ = (i16) *in++;
+            }
         }
     } else {
         u32 i;
         const i32* li = buffer[0];
         const i32* ri = buffer[1];
-
         if (ff->info->bits == 8) {
             char* lo = (char*) ff->buffer + 0;
             char* ro = (char*) ff->buffer + 1;
@@ -158,8 +157,8 @@ static FLAC__StreamDecoderWriteStatus FLAC_Write_f(
             i16* lo = (i16*) ff->buffer + 0;
             i16* ro = (i16*) ff->buffer + 1;
             for (i = 0; i < frame->header.blocksize; i++, lo++, ro++) {
-                *lo++ = (char) *li++;
-                *ro++ = (char) *ri++;
+                *lo++ = (i16) *li++;
+                *ro++ = (i16) *ri++;
             }
         }
     }
