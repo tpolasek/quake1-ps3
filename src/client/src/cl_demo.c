@@ -257,8 +257,6 @@ play [demoname]
 */
 void CL_PlayDemo_f(void) {
     char name[256];
-    i32 c;
-    qboolean neg = false;
 
     if (cmd_source != src_command)
         return;
@@ -289,18 +287,7 @@ void CL_PlayDemo_f(void) {
 
     cls.demoplayback = true;
     cls.state = ca_connected;
-    cls.forcetrack = 0;
-
-    while ((c = getc(cls.demofile)) != '\n')
-        if (c == '-')
-            neg = true;
-        else
-            cls.forcetrack = cls.forcetrack * 10 + (c - '0');
-
-    if (neg)
-        cls.forcetrack = -cls.forcetrack;
-    // ZOID, fscanf is evil
-    //	fscanf (cls.demofile, "%i\n", &cls.forcetrack);
+    fscanf(cls.demofile, "%i\n", &cls.forcetrack);
 }
 
 /*
