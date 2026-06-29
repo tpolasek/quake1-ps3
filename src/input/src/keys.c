@@ -24,6 +24,9 @@
 #include "cmd.h"
 #include "console.h"
 #include "menu.h"
+
+// Opt in to SYS_TRACE logging for binding-debugging on PS3.
+#define SYS_TRACE_ACTIVE 1
 #include "screen.h"
 #include "sys.h"
 #include "vid.h"
@@ -393,6 +396,10 @@ void Key_SetBinding(i32 keynum, char* binding) {
     Q_strcpy(new, binding);
     new[l] = 0;
     keybindings[keynum] = new;
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[keys] bound [%d] -> \"%s\" (stored at %p)\n",
+              (int) keynum, keybindings[keynum], (void*) keybindings[keynum]);
+#endif
 }
 
 /*
@@ -569,19 +576,29 @@ void Key_Init(void) {
     // Menu navigation is also unaffected: M_Keydown consumes K_*ARROW
     // and K_ABUTTON/K_BBUTTON directly, never consulting keybindings[],
     // so the impulse bindings on the D-Pad below only fire in-game.
-    Key_SetBinding(K_ABUTTON,    "+jump");          // Cross
-    Key_SetBinding(K_BBUTTON,    "impulse 12");     // Circle   - prev weapon
-    Key_SetBinding(K_XBUTTON,    "impulse 10");     // Square   - next weapon
-    Key_SetBinding(K_YBUTTON,    "pause");          // Triangle - pause
-    Key_SetBinding(K_LSHOULDER,  "+speed");         // L1 - run modifier
-    Key_SetBinding(K_RSHOULDER,  "+attack");        // R1 - primary fire
-    Key_SetBinding(K_LTRIGGER,   "+moveup");        // L2 - swim up
-    Key_SetBinding(K_RTRIGGER,   "+attack");        // R2 - alt fire
-    Key_SetBinding(K_UPARROW,    "impulse 1");      // D-Up    - axe
-    Key_SetBinding(K_DOWNARROW,  "impulse 2");      // D-Down  - shotgun
-    Key_SetBinding(K_LEFTARROW,  "impulse 3");      // D-Left  - super shotgun
-    Key_SetBinding(K_RIGHTARROW, "impulse 4");      // D-Right - nailgun
-    Key_SetBinding(K_TAB,        "toggleconsole");  // Select  - console
+    //
+    // IMPORTANT: these are queued via Cbuf_AddText, NOT applied via
+    // Key_SetBinding. Host_Init runs `exec quake.rc` (from pak0.pak)
+    // AFTER Key_Init, and quake.rc does `unbindall` + the vanilla
+    // keyboard bindings. If we set pad bindings directly here, that
+    // unbindall wipes them. Cbuf_AddText appends to the END of the
+    // command buffer while quake.rc is inserted at the FRONT -- so our
+    // pad bindings end up running LAST, after the wipe.
+    Cbuf_AddText(
+        "bind ABUTTON \"+jump\"\n"          // Cross
+        "bind BBUTTON \"impulse 12\"\n"     // Circle   - prev weapon
+        "bind XBUTTON \"impulse 10\"\n"     // Square   - next weapon
+        "bind YBUTTON \"pause\"\n"          // Triangle - pause
+        "bind LSHOULDER \"+speed\"\n"       // L1 - run modifier
+        "bind RSHOULDER \"+attack\"\n"      // R1 - primary fire
+        "bind LTRIGGER \"+moveup\"\n"       // L2 - swim up
+        "bind RTRIGGER \"+attack\"\n"       // R2 - alt fire
+        "bind UPARROW \"impulse 1\"\n"      // D-Up    - axe
+        "bind DOWNARROW \"impulse 2\"\n"    // D-Down  - shotgun
+        "bind LEFTARROW \"impulse 3\"\n"    // D-Left  - super shotgun
+        "bind RIGHTARROW \"impulse 4\"\n"   // D-Right - nailgun
+        "bind TAB \"toggleconsole\"\n"      // Select  - console
+    );
 #endif
 }
 
@@ -702,6 +719,12 @@ void Key_Event(i32 key, qboolean down) {
         (key_dest == key_console && !consolekeys[key]) ||
         (key_dest == key_game && (!con_forcedup || !consolekeys[key]))) {
         kb = keybindings[key];
+#ifdef CHOCOLATE_QUAKE_PS3
+        SYS_TRACE("[keys] Key_Event key=%d down=%d key_dest=%d "
+                  "con_forcedup=%d binding=\"%s\"\n",
+                  (int) key, (int) down, (int) key_dest,
+                  (int) con_forcedup, kb ? kb : "(null)");
+#endif
         if (kb) {
             if (kb[0] == '+') { // button commands add keynum as a parm
                 sprintf(cmd, "%s %i\n", kb, key);
