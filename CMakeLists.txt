@@ -19,17 +19,44 @@ if(MATH)
     link_libraries(${MATH})
 endif()
 
-find_package(SDL2 CONFIG REQUIRED)
-find_package(SDL2_net CONFIG REQUIRED)
-if(UNIX AND NOT APPLE)
+if(CHOCOLATE_QUAKE_PS3)
+	# PS3 (PPU/PSL1GHT) path: ps3dev ships SDL2 + audio codec libs but no
+	# SDL2_net (and SDL1's SDL_net is ABI-incompatible). Use sdl2-config for
+	# SDL2 and a stub library for SDL2_net so the project links unchanged.
+	find_package(SDL2 REQUIRED)
+	add_library(ps3_sdl2_net_stub STATIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/cmake/ps3/sdl2_net_stub/sdl_net_stub.c")
+	target_include_directories(ps3_sdl2_net_stub PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/cmake/ps3/sdl2_net_stub/include")
+	target_link_libraries(ps3_sdl2_net_stub PUBLIC SDL2::SDL2)
+	add_library(SDL2_net::SDL2_net-static ALIAS ps3_sdl2_net_stub)
+	add_library(SDL2_net::SDL2_net ALIAS ps3_sdl2_net_stub)
+
+	# Codec headers (vorbis/vorbisfile.h, mad.h, FLAC/stream_decoder.h) all
+	# live in the ps3dev portlibs include dir; expose it globally so the
+	# find_library calls below (which only resolve .a paths) don't need
+	# per-target include wiring.
+	include_directories("${PS3DEV}/portlibs/ppu/include")
+
 	find_library(VORBIS_LIBRARY vorbis REQUIRED)
 	find_library(VORBISFILE_LIBRARY vorbisfile REQUIRED)
 	find_library(MAD_LIBRARY mad REQUIRED)
 	find_library(FLAC_LIBRARY FLAC REQUIRED)
+	find_library(OGG_LIBRARY ogg REQUIRED)
 else()
-	find_package(Vorbis CONFIG REQUIRED)
-	find_package(mad CONFIG REQUIRED)
-	find_package(FLAC CONFIG REQUIRED)
+	find_package(SDL2 CONFIG REQUIRED)
+	find_package(SDL2_net CONFIG REQUIRED)
+	if(UNIX AND NOT APPLE)
+		find_library(VORBIS_LIBRARY vorbis REQUIRED)
+		find_library(VORBISFILE_LIBRARY vorbisfile REQUIRED)
+		find_library(MAD_LIBRARY mad REQUIRED)
+		find_library(FLAC_LIBRARY FLAC REQUIRED)
+		find_library(OGG_LIBRARY ogg REQUIRED)
+	else()
+		find_package(Vorbis CONFIG REQUIRED)
+		find_package(mad CONFIG REQUIRED)
+		find_package(FLAC CONFIG REQUIRED)
+	endif()
 endif()
 
 configure_file(config.h.in config.h)

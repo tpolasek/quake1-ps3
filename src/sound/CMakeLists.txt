@@ -20,12 +20,16 @@ add_library(${LIB} STATIC
 )
 
 set(LIBS ${SDL2_LIBRARIES})
-if(UNIX AND NOT APPLE)
+if(VORBISFILE_LIBRARY)
+    # Linux / PS3: find_library results from the top-level CMakeLists.txt.
+    # Order matters with static libs (dependent must precede dependency):
+    # vorbisfile -> vorbis -> FLAC/mad -> ogg.
     list(APPEND LIBS
-        ${VORBIS_LIBRARY}
         ${VORBISFILE_LIBRARY}
+        ${VORBIS_LIBRARY}
         ${FLAC_LIBRARY}
         ${MAD_LIBRARY}
+        ${OGG_LIBRARY}
     )
 else()
     list(APPEND LIBS
