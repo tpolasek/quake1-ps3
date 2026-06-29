@@ -8,6 +8,7 @@ add_library(${LIB} STATIC
     src/vid_menu.h
     src/vid_modes.c
     src/vid_modes.h
+    src/vid_ps3.c
     src/vid_window.c
     src/vid_window.h
 )

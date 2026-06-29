@@ -42,6 +42,15 @@ static sys_ppu_thread_t g_game_thread_id;
 static int              g_game_argc;
 static char**           g_game_argv;
 
+// PS3 stack tracking. Quake_GameThread is the outermost frame of the 2 MB
+// worker, so &local captured here is effectively the stack bottom (the
+// highest used address). Deep frames (R_AliasDrawModel ~88 KB,
+// R_RenderWorld ~80 KB) sit at lower addresses. Other TUs probe this with
+// `ps3_stack_bottom - &probe` to get bytes-used-so-far.
+#ifdef CHOCOLATE_QUAKE_PS3
+char *ps3_stack_bottom = 0;
+#endif
+
 // The actual game entry point -- what main() used to do directly.
 static void Quake_Run(int argc, char** argv) {
     quakeparms_t* parms = Sys_Init(argc, argv);
@@ -67,6 +76,12 @@ static void Quake_Run(int argc, char** argv) {
 
 static void Quake_GameThread(void* arg) {
     (void)arg;
+    // Capture the stack bottom once. volatile so the compiler doesn't
+    // elide the local; its address is what we care about.
+    volatile char stack_anchor;
+    ps3_stack_bottom = (char *) &stack_anchor;
+    SYS_TRACE("[stack] thread entry: stack_bottom=%p size=%d\n",
+              ps3_stack_bottom, PS3_GAME_STACK);
     Quake_Run(g_game_argc, g_game_argv);
     sysThreadExit(0);
 }
@@ -96,7 +111,11 @@ int main(int argc, char* argv[]) {
     // and bypasses this sleep.
 #define PS3_WATCHDOG_SECONDS  20
     usleep(PS3_WATCHDOG_SECONDS * 1000 * 1000);
-    SYS_TRACE("main: watchdog (%d s) expired, force-exiting process\n",
+    // Disambiguator: this fires only when the worker thread has not exited on
+    // its own within the watchdog window. If this is the last line of the log,
+    // the game is in a true hang (renderer/audio spin or hard lockup), NOT a
+    // Sys_Error crash (those print "Error:" first).
+    SYS_TRACE("[watchdog] fired after %d s timeout -- true hang, not a crash\n",
               PS3_WATCHDOG_SECONDS);
     sysProcessExit(1);
     return 1; // unreachable

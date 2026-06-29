@@ -31,4 +31,17 @@ void VID_FreeBuffers(void);
 
 void VID_UpdateTexture(SDL_Texture* texture, vrect_t* rect);
 
+// PS3: blit the 32-bit RGBA intermediate buffer to the window surface.
+// Used by the window-surface display path that bypasses SDL_Renderer.
+void VID_BlitToSurface(SDL_Surface* dst);
+
+// PS3 direct-RSX backend (vid_ps3.c).
+void VID_PS3_Init(void);
+void VID_PS3_Shutdown(void);
+void VID_PS3_Present(const void* src_pixels, int src_w, int src_h);
+qboolean VID_PS3_IsReady(void);
+
+// Accessor: raw 32-bit ARGB pixel data after the 8-bit → 32-bit conversion.
+void* VID_GetARGBPixels(void);
+
 #endif

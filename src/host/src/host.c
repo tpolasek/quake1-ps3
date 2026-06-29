@@ -658,7 +658,14 @@ void _Host_Frame(float time) {
     if (host_speeds.value)
         time1 = Sys_FloatTime();
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[frame] %d before SCR_UpdateScreen\n", host_framecount);
+#endif
     SCR_UpdateScreen();
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[frame] %d after SCR_UpdateScreen / before S_Update\n",
+              host_framecount);
+#endif
 
     if (host_speeds.value) {
         time2 = Sys_FloatTime();
@@ -672,7 +679,14 @@ void _Host_Frame(float time) {
         S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
     }
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[frame] %d after S_Update / before BGMusic_Update\n",
+              host_framecount);
+#endif
     BGMusic_Update();
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[frame] %d END\n", host_framecount);
+#endif
 
     if (host_speeds.value) {
         pass1 = (time1 - time3) * 1000;
@@ -684,6 +698,29 @@ void _Host_Frame(float time) {
     }
 
     host_framecount++;
+
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Periodic stack high-water probe: every 64 frames report bytes used
+    // against the 2 MB worker stack. If `used` climbs toward PS3_GAME_STACK
+    // we're heading for a silent overflow.
+    extern char *ps3_stack_bottom;
+    if (ps3_stack_bottom && (host_framecount & 63) == 0) {
+        char probe;
+        SYS_TRACE("[stack] frame=%d used=%d\n",
+                  host_framecount, (int)(ps3_stack_bottom - &probe));
+    }
+    // Periodic heap snapshot: every 128 frames. Cache lives in the gap
+    // between hunk_low_used and hunk_high_used; if cache_free approaches 0
+    // we're heading for Cache_Alloc failure (and a Sys_Error, not a freeze).
+    extern i32 hunk_size;
+    extern i32 hunk_low_used;
+    extern i32 hunk_high_used;
+    if ((host_framecount & 127) == 0) {
+        SYS_TRACE("[mem] frame=%d total=%d low=%d high=%d cache_free=%d\n",
+                  host_framecount, hunk_size, hunk_low_used, hunk_high_used,
+                  hunk_size - hunk_low_used - hunk_high_used);
+    }
+#endif
 }
 
 void Host_Frame(float time) {

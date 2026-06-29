@@ -288,10 +288,7 @@ static qboolean COM_SearchPak(
         Sys_Printf("PackFile: %s : %s\n", pak->filename, filename);
         if (handle) {
             *handle = pak->handle;
-            SYS_TRACE("COM_SearchPak: '%s' seeking to %d (pak handle=%d)\n",
-                      filename, (int) pak->files[i].filepos, pak->handle);
             Sys_FileSeek(pak->handle, pak->files[i].filepos);
-            SYS_TRACE("COM_SearchPak: '%s' seek done\n", filename);
         } else {
             // open a new file on the pakfile
             *file = fopen(pak->filename, "rb");
@@ -476,10 +473,7 @@ Allways appends a 0 byte.
 static byte* COM_LoadFile(char* path, i32 usehunk) {
     // look for it in the filesystem or pack files
     i32 h;
-    SYS_TRACE("COM_LoadFile: '%s' opening (usehunk=%d)\n", path, usehunk);
     i32 len = COM_OpenFile(path, &h);
-    SYS_TRACE("COM_LoadFile: '%s' opened len=%d handle=%d\n",
-              path, len, h);
     if (h == -1) {
         return NULL;
     }
@@ -509,20 +503,15 @@ static byte* COM_LoadFile(char* path, i32 usehunk) {
             Sys_Error("COM_LoadFile: bad usehunk");
             break;
     }
-    SYS_TRACE("COM_LoadFile: '%s' buffer=%p\n", path, (void*) buf);
     if (!buf) {
         Sys_Error("COM_LoadFile: not enough space for %s", path);
     }
     buf[len] = 0;
 
-    SYS_TRACE("COM_LoadFile: '%s' reading %d bytes from handle %d\n",
-              path, len, h);
     Draw_BeginDisc();
     Sys_FileRead(h, buf, len);
-    SYS_TRACE("COM_LoadFile: '%s' read done, closing\n", path);
     COM_CloseFile(h);
     Draw_EndDisc();
-    SYS_TRACE("COM_LoadFile: '%s' done\n", path);
 
     return buf;
 }

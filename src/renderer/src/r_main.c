@@ -569,6 +569,10 @@ void R_DrawViewModel(void) {
     float add;
     dlight_t* dl;
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("ENTER R_DrawViewModel\n");
+#endif
+
     if (!r_drawviewmodel.value || r_fov_greater_than_90)
         return;
 
@@ -620,6 +624,9 @@ void R_DrawViewModel(void) {
     r_viewlighting.plightvec = lightvec;
 
     R_AliasDrawModel(&r_viewlighting);
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("EXIT  R_DrawViewModel\n");
+#endif
 }
 
 
@@ -926,7 +933,14 @@ void R_RenderView_(void) {
         dp_time1 = Sys_FloatTime();
     }
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[render] before R_DrawParticles\n");
+#endif
     R_DrawParticles();
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[render] after R_DrawParticles / before D_WarpScreen (dowarp=%d)\n",
+              r_dowarp ? 1 : 0);
+#endif
 
     if (r_dspeeds.value)
         dp_time2 = Sys_FloatTime();
@@ -934,7 +948,14 @@ void R_RenderView_(void) {
     if (r_dowarp)
         D_WarpScreen();
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[render] after D_WarpScreen / before V_SetContentsColor "
+              "(viewleaf=%p)\n", (void*) r_viewleaf);
+#endif
     V_SetContentsColor(r_viewleaf->contents);
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[render] after V_SetContentsColor\n");
+#endif
 
     if (r_timegraph.value)
         R_TimeGraph();
@@ -956,6 +977,9 @@ void R_RenderView_(void) {
 
     // back to high floating-point precision
     Sys_HighFPPrecision();
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("[render] END R_RenderView_\n");
+#endif
 }
 
 void R_RenderView(void) {

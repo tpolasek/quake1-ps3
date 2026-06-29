@@ -173,7 +173,6 @@ void Cbuf_Execute(void) {
         }
 
         // execute the command line
-        SYS_TRACE("Cbuf_Execute: '%s'\n", line);
         Cmd_ExecuteString(line, src_command);
 
         if (cmd_wait) { // skip out while text still remains in buffer, leaving it

@@ -656,6 +656,24 @@ void R_AliasDrawModel(alight_t* plighting) {
                            ((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 1];
     auxvert_t auxverts[MAXALIASVERTS];
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("ENTER R_AliasDrawModel (model=%s)\n",
+              currententity && currententity->model
+                  ? currententity->model->name
+                  : "(none)");
+    // One-shot depth probe -- R_AliasDrawModel has the largest single frame
+    // (~88 KB for the finalverts/auxverts arrays above). If used here is
+    // already deep, prior frames have consumed most of the 2 MB stack.
+    {
+        extern char *ps3_stack_bottom;
+        if (ps3_stack_bottom) {
+            char probe;
+            SYS_TRACE("[stack] R_AliasDrawModel depth=%d\n",
+                      (int)(ps3_stack_bottom - &probe));
+        }
+    }
+#endif
+
     r_amodels_drawn++;
 
     // cache align
@@ -692,4 +710,8 @@ void R_AliasDrawModel(alight_t* plighting) {
         R_AliasPrepareUnclippedPoints();
     else
         R_AliasPreparePoints();
+
+#ifdef CHOCOLATE_QUAKE_PS3
+    SYS_TRACE("EXIT  R_AliasDrawModel\n");
+#endif
 }

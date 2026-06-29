@@ -108,15 +108,24 @@ static void VID_AllocZBuffer() {
 // Create the 32-bit RGBA buffer. Format of argb_buffer must match the
 // screen pixel format because we import the surface data into the texture.
 //
+// On PS3 the texture uses STATIC access (see vid_window.c), so argb_buffer
+// owns its own pixel memory -- SDL_UpdateTexture reads from it each frame.
+// On desktop the texture is STREAMING and argb_buffer is a thin wrapper
+// whose pixels pointer is filled in by SDL_LockTexture.
+//
 static void VID_AllocRgbaBuffer(void) {
-    void* pixels = NULL;
     int w = (int) vid.width;
     int h = (int) vid.height;
+#ifdef CHOCOLATE_QUAKE_PS3
+    argb_buffer = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, pixel_format);
+#else
+    void* pixels = NULL;
     int depth = 0;
     int pitch = 0;
     argb_buffer = SDL_CreateRGBSurfaceWithFormatFrom(
         pixels, w, h, depth, pitch, pixel_format
     );
+#endif
 }
 
 //
@@ -216,10 +225,27 @@ void VID_UpdateTexture(SDL_Texture* texture, vrect_t* rect) {
         .w = rect->width,
         .h = rect->height,
     };
+#ifdef CHOCOLATE_QUAKE_PS3
+    // PS3 direct-RSX path: just do the 8-bit → 32-bit conversion into
+    // argb_buffer. The actual display upload + flip is handled by
+    // VID_PS3_Present() which reads argb_buffer->pixels directly.
+    SDL_LowerBlit(screen_buffer, &src_rect, argb_buffer, &dst_rect);
+#else
     SDL_LockTexture(texture, &src_rect, &argb_buffer->pixels,
                     &argb_buffer->pitch);
     SDL_LowerBlit(screen_buffer, &src_rect, argb_buffer, &dst_rect);
     SDL_UnlockTexture(texture);
+#endif
+}
+
+void VID_BlitToSurface(SDL_Surface* dst) {
+    // Scale the 320x200 argb_buffer to the destination surface (typically
+    // the full-screen window surface on PS3).
+    SDL_BlitScaled(argb_buffer, NULL, dst, NULL);
+}
+
+void* VID_GetARGBPixels(void) {
+    return argb_buffer ? argb_buffer->pixels : NULL;
 }
 
 //==============================================================================
