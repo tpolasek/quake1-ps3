@@ -234,6 +234,10 @@ double Sys_FloatTime() {
     if (start_time == 0) {
         frequency = (double) SDL_GetPerformanceFrequency();
         start_time = SDL_GetPerformanceCounter();
+        SYS_TRACE("Sys_FloatTime: first call freq=%llu start=%llu -> %.6f\n",
+                  (unsigned long long) frequency,
+                  (unsigned long long) start_time,
+                  (double) start_time / frequency);
         return (double) start_time / frequency;
     }
     u64 now = SDL_GetPerformanceCounter();
