@@ -26,6 +26,7 @@
 #ifdef CHOCOLATE_QUAKE_PS3
 #include <unistd.h>
 #include <sys/thread.h>
+#include <sys/process.h>
 
 // The PS3 OS spawns the EBOOT main thread with a fixed ~128 KB stack.
 // That's smaller than several Quake functions' stack-allocated arrays
@@ -78,7 +79,7 @@ int main(int argc, char* argv[]) {
     g_game_argv = argv;
     s32 rc = sysThreadCreate(&g_game_thread_id, Quake_GameThread, NULL,
                              PS3_GAME_PRIO, PS3_GAME_STACK,
-                             THREAD_JOINABLE, "quake_game");
+                             0, "quake_game");
     if (rc != 0) {
         // Cannot use SYS_TRACE here -- Sys_OpenLog hasn't run yet (it
         // runs inside Sys_Init on the worker thread). Last-resort
@@ -86,9 +87,19 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "sysThreadCreate failed: %d\n", (int) rc);
         return 1;
     }
-    u64 exit_code = 0;
-    sysThreadJoin(g_game_thread_id, &exit_code);
-    return (int) exit_code;
+    // NOTE: We deliberately do NOT join the worker thread. When the game
+    // freezes (the whole reason we're debugging), joining would block
+    // forever and force a hard console reboot. Instead, sleep a fixed
+    // watchdog timeout and then terminate the process -- the OS reaps
+    // the still-running worker thread. The PS-button XMB exit path
+    // (sysProcessExit from the sysutil callback) still fires immediately
+    // and bypasses this sleep.
+#define PS3_WATCHDOG_SECONDS  20
+    usleep(PS3_WATCHDOG_SECONDS * 1000 * 1000);
+    SYS_TRACE("main: watchdog (%d s) expired, force-exiting process\n",
+              PS3_WATCHDOG_SECONDS);
+    sysProcessExit(1);
+    return 1; // unreachable
 #else
     quakeparms_t* parms = Sys_Init(argc, argv);
     Host_Init(parms);

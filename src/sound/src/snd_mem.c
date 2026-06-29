@@ -98,6 +98,10 @@ sfxcache_t* S_LoadSound(sfx_t* s) {
     sfxcache_t* sc;
     byte stackbuf[1 * 1024]; // avoid dirtying the cache heap
 
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Audio loading disabled on PS3 for debugging the loading hang.
+    return NULL;
+#else
     SYS_TRACE("S_LoadSound: '%s'\n", s->name);
 
     // see if still in memory
@@ -141,6 +145,7 @@ sfxcache_t* S_LoadSound(sfx_t* s) {
     SYS_TRACE("S_LoadSound: '%s' done\n", s->name);
 
     return sc;
+#endif
 }
 
 
