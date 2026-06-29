@@ -403,6 +403,48 @@ static void IN_RegisterCvars(void) {
     Cvar_RegisterVariable(&joy_enable);
 }
 
+#ifdef CHOCOLATE_QUAKE_PS3
+// The PSL1GHT joystick driver exposes the DualShock 3 as a joystick named
+// "PS3 Controller", but ships with no SDL_GameController mapping for it.
+// Without one, SDL_GameControllerOpen() always returns NULL and the rest
+// of this module never sees a pad. We register the mapping at startup by
+// reading the GUID of joystick 0 and binding the standard PSL1GHT pad
+// button/axis indices to SDL_GameController IDs.
+//
+// PSL1GHT button indices (one bit per pad button, reported in order):
+//   0:Select 1:L3 2:R3 3:Start 4:Dup 5:Dright 6:Ddown 7:Dleft
+//   8:L2 9:R2 10:L1 11:R1 12:Tri 13:Circ 14:Cross 15:Square 16:PS
+// PSL1GHT axes:
+//   0:Lx 1:Ly 2:Rx 3:Ry 4:L2(analog) 5:R2(analog)
+static void IN_RegisterPS3ControllerMapping(void) {
+    if (SDL_NumJoysticks() <= 0) {
+        return;
+    }
+    SDL_Joystick* joy = SDL_JoystickOpen(0);
+    if (!joy) {
+        return;
+    }
+    SDL_JoystickGUID guid = SDL_JoystickGetGUID(joy);
+    char guid_str[33];
+    char mapping[256];
+    SDL_JoystickGetGUIDString(guid, guid_str, sizeof(guid_str));
+    // PlayStation face buttons mapped to SDL_GameController Xbox convention:
+    //   a=Cross b=Circle x=Square y=Triangle
+    SDL_snprintf(mapping, sizeof(mapping),
+        "%s,PS3 Controller,"
+        "a:b14,b:b13,x:b15,y:b12,"
+        "back:b0,guide:b16,start:b3,"
+        "leftstick:b1,rightstick:b2,"
+        "leftshoulder:b10,rightshoulder:b11,"
+        "lefttrigger:a4,righttrigger:a5,"
+        "dpup:b4,dpdown:b6,dpleft:b7,dpright:b5,"
+        "leftx:a0,lefty:a1,rightx:a2,righty:a3",
+        guid_str);
+    SDL_GameControllerAddMapping(mapping);
+    SDL_JoystickClose(joy);
+}
+#endif
+
 void IN_InitGamepad(void) {
     IN_RegisterCvars();
     if (COM_CheckParm("-nojoy")) {
@@ -413,6 +455,21 @@ void IN_InitGamepad(void) {
         Con_Printf("Couldn't init game controller: %s\n", SDL_GetError());
         return;
     }
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Register the PS3 pad mapping before SDL_GameControllerEventState so
+    // any SDL_CONTROLLERDEVICEADDED event fired on the next pump sees a
+    // matching mapping. Also open the pad directly here so the gamepad is
+    // usable even if the event hasn't been pumped yet.
+    IN_RegisterPS3ControllerMapping();
+    if (!gamepad) {
+        gamepad = SDL_GameControllerOpen(0);
+        if (gamepad) {
+            SDL_Joystick* joy = SDL_GameControllerGetJoystick(gamepad);
+            gamepad_id = SDL_JoystickInstanceID(joy);
+            Con_Printf("\nPS3 controller detected\n\n");
+        }
+    }
+#endif
     SDL_GameControllerEventState(SDL_ENABLE);
 }
 

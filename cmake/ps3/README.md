@@ -93,6 +93,18 @@ top of `cmake/ps3/make_pkg.sh`.
 | `cmake/ps3/sdl2_net_stub/`          | Stub `SDL_net` (ps3dev has no SDL2_net)  |
 | `cmake/ps3/make_pkg.sh`             | Packaging script                         |
 
+### Source patches gated on `CHOCOLATE_QUAKE_PS3`
+
+The macro is defined project-wide by `CMakeLists.txt` only when the PS3
+toolchain is active, so the desktop builds are byte-for-byte unchanged.
+
+| File:line                           | Change                                   |
+|-------------------------------------|------------------------------------------|
+| `src/sys/src/sys.c:312-339`         | `Sys_GetDefaultBaseDir` uses `SDL_GetBasePath()` so the game finds `id1/` next to `EBOOT.BIN` (`/dev_hdd0/game/CHQK00001/USRDIR/`) instead of SDL's per-title savedata dir |
+| `src/sys/src/sys.c:311-318`         | `DEFAULT_MEMORY` lowered to 128 MB (PS3 main RAM is 256 MB shared) |
+| `src/video/src/vid_window.c:87-96`  | Sets `SDL_HINT_RENDER_SCALE_QUALITY=0` before texture creation so the 320x200 framebuffer upscales with crisp nearest-neighbour pixels, not bilinear blur |
+| `src/input/src/in_gamepad.c:406-470`| Registers a `SDL_GameController` mapping for the DualShock 3 (the PSL1GHT driver exposes it as a joystick without a default mapping) and opens it at startup |
+
 ## Notes / caveats
 
 - The container runs as root, so `build-ps3/` and `chocolate-quake.pkg`
