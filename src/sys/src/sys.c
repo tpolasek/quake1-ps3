@@ -28,6 +28,7 @@
 #include "keys.h"
 #include "menu.h"
 #include <SDL_events.h>
+#include <SDL_filesystem.h>
 #include <SDL_hints.h>
 #include <SDL_stdinc.h>
 #include <SDL_timer.h>
@@ -311,6 +312,23 @@ static void Sys_SigInit(void) {
 
 static char* Sys_GetDefaultBaseDir(void) {
 #ifdef _WIN32
+    return ".";
+#elif defined(CHOCOLATE_QUAKE_PS3)
+    // On PS3, the .pkg ships id1/ next to EBOOT.BIN under the title's
+    // USRDIR (e.g. /dev_hdd0/game/<TITLE_ID>/USRDIR/). SDL_GetBasePath()
+    // returns the executable's directory on PSL1GHT, which is exactly
+    // where we want to look. SDL_GetPrefPath() would point us at a
+    // per-title savedata dir that has no game data.
+    static char base_dir[MAX_OSPATH] = {0};
+    if (base_dir[0]) {
+        return base_dir;
+    }
+    char* path = SDL_GetBasePath();
+    if (path) {
+        Q_strncpy(base_dir, path, MAX_OSPATH);
+        SDL_free(path);
+        return base_dir;
+    }
     return ".";
 #else
     static char base_dir[MAX_OSPATH] = {0};

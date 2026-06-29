@@ -23,6 +23,10 @@ if(CHOCOLATE_QUAKE_PS3)
 	# PS3 (PPU/PSL1GHT) path: ps3dev ships SDL2 + audio codec libs but no
 	# SDL2_net (and SDL1's SDL_net is ABI-incompatible). Use sdl2-config for
 	# SDL2 and a stub library for SDL2_net so the project links unchanged.
+	#
+	# Expose CHOCOLATE_QUAKE_PS3 to source so platform branches (e.g.
+	# Sys_GetDefaultBaseDir in src/sys) can pick the PS3 layout.
+	add_compile_definitions(CHOCOLATE_QUAKE_PS3=1)
 	find_package(SDL2 REQUIRED)
 	add_library(ps3_sdl2_net_stub STATIC
 		"${CMAKE_CURRENT_SOURCE_DIR}/cmake/ps3/sdl2_net_stub/sdl_net_stub.c")
