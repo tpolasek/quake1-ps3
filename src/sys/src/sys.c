@@ -362,18 +362,14 @@ static void Sys_SigInit(void) {
 #define PS3_LOG_PATH "/dev_hdd0/game/CHQK00001/USRDIR/chocolate-quake.log"
 
 static void Sys_OpenLog(void) {
-    // Logging to chocolate-quake.log is currently disabled -- the renderer
-    // is stable now and we don't need per-run FTP log pulls for debugging.
-    // Re-enable by deleting this early return (freopen below redirects
-    // stdout to PS3_LOG_PATH; Sys_Printf / SYS_TRACE / Sys_Error all go
-    // through stdout, so a single freopen is all it takes to bring them
-    // back). SYS_TRACE calls throughout the codebase are left in place;
-    // with logging off they just write to the void.
-    return;
     // PS3 newlib has no dup2, so we redirect stdout to the log file via
     // freopen (any printf / Sys_Printf output lands here automatically).
     // Sys_Error writes to stdout rather than stderr so its output is
     // captured too.
+    //
+    // Logging is currently enabled for gamepad input debugging only --
+    // SYS_TRACE is opt-in via SYS_TRACE_ACTIVE, and only in_gamepad.c
+    // turns it on. To silence the log again, early-return here.
     if (!freopen(PS3_LOG_PATH, "w", stdout)) {
         return;
     }

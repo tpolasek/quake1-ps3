@@ -554,6 +554,35 @@ void Key_Init(void) {
     Cmd_AddCommand("bind", Key_Bind_f);
     Cmd_AddCommand("unbind", Key_Unbind_f);
     Cmd_AddCommand("unbindall", Key_Unbindall_f);
+
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Default DualShock 3 bindings. id1/ in this port ships no
+    // default.cfg (Quake 1's original is keyboard-only anyway), and
+    // there's no auto-exec of config.cfg on startup, so without these
+    // every pad button would print "X is unbound, hit F4 to set" on
+    // first press and the game would be unplayable on the pad alone.
+    //
+    // Movement and camera look are NOT here -- they're wired straight
+    // into cmd->forwardmove / cmd->sidemove / cl.viewangles by
+    // IN_JoyMove from the analog sticks, bypassing the binding system.
+    //
+    // Menu navigation is also unaffected: M_Keydown consumes K_*ARROW
+    // and K_ABUTTON/K_BBUTTON directly, never consulting keybindings[],
+    // so the impulse bindings on the D-Pad below only fire in-game.
+    Key_SetBinding(K_ABUTTON,    "+jump");          // Cross
+    Key_SetBinding(K_BBUTTON,    "impulse 12");     // Circle   - prev weapon
+    Key_SetBinding(K_XBUTTON,    "impulse 10");     // Square   - next weapon
+    Key_SetBinding(K_YBUTTON,    "pause");          // Triangle - pause
+    Key_SetBinding(K_LSHOULDER,  "+speed");         // L1 - run modifier
+    Key_SetBinding(K_RSHOULDER,  "+attack");        // R1 - primary fire
+    Key_SetBinding(K_LTRIGGER,   "+moveup");        // L2 - swim up
+    Key_SetBinding(K_RTRIGGER,   "+attack");        // R2 - alt fire
+    Key_SetBinding(K_UPARROW,    "impulse 1");      // D-Up    - axe
+    Key_SetBinding(K_DOWNARROW,  "impulse 2");      // D-Down  - shotgun
+    Key_SetBinding(K_LEFTARROW,  "impulse 3");      // D-Left  - super shotgun
+    Key_SetBinding(K_RIGHTARROW, "impulse 4");      // D-Right - nailgun
+    Key_SetBinding(K_TAB,        "toggleconsole");  // Select  - console
+#endif
 }
 
 //

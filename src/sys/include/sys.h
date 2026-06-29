@@ -94,12 +94,22 @@ qboolean Sys_XmbMenuOpen(void);
 // Sys_Trace function) so each call site emits its own fprintf/fflush and we
 // don't have to chase static-library link order across the various lib*.a
 // archives that make up the executable.
+//
+// SYS_TRACE is opt-in: it compiles to nothing unless SYS_TRACE_ACTIVE is
+// defined before sys.h is included. The PS3 log was getting drowned by
+// ~130 trace call sites spread across the codebase, making it hard to
+// debug specific subsystems. To enable tracing in a file, add
+// `#define SYS_TRACE_ACTIVE 1` at the top before any #include.
 #ifdef CHOCOLATE_QUAKE_PS3
 #include <stdio.h>
+#ifdef SYS_TRACE_ACTIVE
 #define SYS_TRACE(...) do { \
     fprintf(stdout, "[trace] " __VA_ARGS__); \
     fflush(stdout); \
 } while (0)
+#else
+#define SYS_TRACE(...) ((void)0)
+#endif
 #else
 #define SYS_TRACE(...) ((void)0)
 #endif

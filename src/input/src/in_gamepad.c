@@ -35,6 +35,10 @@
 #include "in_gamepad.h"
 #include "console.h"
 #include "keys.h"
+
+// Opt in to SYS_TRACE logging for gamepad debugging. Other subsystems keep
+// their trace call sites but they compile to nothing (see sys.h).
+#define SYS_TRACE_ACTIVE 1
 #include "sys.h"
 
 #ifndef CHOCOLATE_QUAKE_PS3
@@ -358,10 +362,11 @@ static float IN_PS3_NormalizeStick(u8 v) {
     } else {
         raw = (float)(v - 128) / 128.0f;   // [-1, 0]
     }
-    // Per-axis deadzone: 12 raw units (~9.4% of half-range) absorbs DS3
-    // drift without eating intentional small deflections. Rescale so dz
-    // maps to 0 and 1.0 maps to 1.0.
-    const float dz = 12.0f / 128.0f;
+    // Per-axis deadzone: 30 raw units (~23% of half-range). The previous
+    // 12 wasn't enough for typical DS3 hardware drift, which caused the
+    // camera to slowly rotate even with the stick at rest. 30 is what
+    // most PS3 homebrew uses; still leaves ~70% of the range for play.
+    const float dz = 30.0f / 128.0f;
     if (raw > dz) {
         return (raw - dz) / (1.0f - dz);
     }
@@ -422,31 +427,41 @@ void IN_PollGamepad(void) {
     if (!connected) {
         if (gamepad_connected) {
             // Pad was pulled since last frame -- release stuck keys.
-            Con_DPrintf("PS3 pad disconnected\n");
+            SYS_TRACE("[pad] disconnected (port_status was 0x%x)\n",
+                      (unsigned) ps3_port_status);
             IN_PS3_ReleaseAll();
             gamepad_connected = false;
         }
         return;
     }
     if (!gamepad_connected) {
-        Con_Printf("\nPS3 pad detected\n\n");
+        SYS_TRACE("[pad] connected (port_status=0x%x setting=0x%x type=%u)\n",
+                  (unsigned) status,
+                  (unsigned) info.port_setting[0],
+                  (unsigned) info.device_type[0]);
         gamepad_connected = true;
     }
     ps3_port_status = status;
 
-    padData data;
-    // Zero so stale bits from a previous pad type (BD remote etc.) don't
-    // leak through if ioPadGetData only partially fills the struct.
-    memset(&data, 0, sizeof(data));
+    // Static so analog fields persist across partial reports. The DS3
+    // Bluetooth protocol doesn't include the analog stick bytes in every
+    // packet -- on those frames ioPadGetData returns success but only
+    // fills the digital button bitmap. If we re-zeroed the struct each
+    // frame (which we used to), those gaps would read as 0x00 = "full
+    // left+up deflection" and the camera would spin every time the pad
+    // sent a short report. Keeping the buffer static means stale-but-
+    // plausible values carry over until the next full report.
+    static padData data;
     if (ioPadGetData(0, &data) != 0) {
         return;
     }
 
     // ---- Digital buttons --------------------------------------------------
     // padData exposes pre-decoded 1-bit fields (BTN_CROSS, BTN_LEFT, ...).
-    // L2/R2 are deliberately *not* read here: the trigger axis emulation
-    // below fires K_LTRIGGER/K_RTRIGGER from the analog pressure, matching
-    // the desktop path.
+    // L2/R2 are read here as digital buttons rather than via the PRE_L2 /
+    // PRE_R2 analog-pressure fields -- those need pressure mode enabled
+    // via ioPadSetPortSetting, and without it the triggers never register
+    // at all. The digital bits always work.
     struct {
         unsigned int btn : 1;
         pad_button_t id;
@@ -468,14 +483,45 @@ void IN_PollGamepad(void) {
     };
     for (size_t i = 0; i < sizeof(map) / sizeof(map[0]); i++) {
         button_t* b = &buttons[map[i].id];
+        const qboolean transition = (b->pressed != (map[i].btn ? true : false));
         b->was_pressed = b->pressed;
         b->pressed = map[i].btn ? true : false;
+        if (transition) {
+            SYS_TRACE("[pad] btn id=%u %s\n", (unsigned) map[i].id,
+                      b->pressed ? "down" : "up");
+        }
         IN_SendButtonEvent(b);
     }
 
-    // ---- Analog axes ------------------------------------------------------
-    // Sticks first. previous_value is the last frame's value, so the
-    // axis-button emulation can detect rising/falling edges.
+    // L2/R2 (digital). These map to K_LTRIGGER/K_RTRIGGER via the
+    // dedicated trigger button_t structs (not in buttons[]).
+    button_t* tb;
+    tb = &left_trigger_button;
+    {
+        const qboolean transition = (tb->pressed != (data.BTN_L2 ? true : false));
+        tb->was_pressed = tb->pressed;
+        tb->pressed = data.BTN_L2 ? true : false;
+        if (transition) {
+            SYS_TRACE("[pad] L2 (K_LTRIGGER) %s\n", tb->pressed ? "down" : "up");
+        }
+        IN_SendButtonEvent(tb);
+    }
+    tb = &right_trigger_button;
+    {
+        const qboolean transition = (tb->pressed != (data.BTN_R2 ? true : false));
+        tb->was_pressed = tb->pressed;
+        tb->pressed = data.BTN_R2 ? true : false;
+        if (transition) {
+            SYS_TRACE("[pad] R2 (K_RTRIGGER) %s\n", tb->pressed ? "down" : "up");
+        }
+        IN_SendButtonEvent(tb);
+    }
+
+    // ---- Analog sticks ----------------------------------------------------
+    // Only the two thumbsticks are read as analog values now; the triggers
+    // are purely digital (above). previous_value lets the (now-unused for
+    // sticks) axis-button emulation detect edges, in case it's ever wired
+    // back up for menu navigation.
     axis_t* ax;
 
     ax = &axes[PAD_AXIS_LEFTX];
@@ -494,22 +540,24 @@ void IN_PollGamepad(void) {
     ax->previous_value = ax->value;
     ax->value = IN_PS3_NormalizeStick((u8) data.ANA_R_V);
 
-    // Analog trigger pressures. If the pad is in digital-only mode these
-    // stay 0 and the triggers won't register -- but BTN_L2/BTN_R2 would
-    // still be set; we don't currently wire those up as a fallback.
-    ax = &axes[PAD_AXIS_TRIGGERLEFT];
-    ax->previous_value = ax->value;
-    ax->value = IN_PS3_NormalizeTrigger((u8) data.PRE_L2);
-
-    ax = &axes[PAD_AXIS_TRIGGERRIGHT];
-    ax->previous_value = ax->value;
-    ax->value = IN_PS3_NormalizeTrigger((u8) data.PRE_R2);
-
-    // Run axis-to-button emulation. Only the triggers are mapped -- the
-    // analog sticks no longer generate fake D-Pad presses in menus, so
-    // menu navigation is D-Pad / face buttons only.
-    IN_EmulateButtonForAxis(PAD_AXIS_TRIGGERLEFT);
-    IN_EmulateButtonForAxis(PAD_AXIS_TRIGGERRIGHT);
+    // Periodic axis dump (~2 Hz) so we can see raw pad values vs. the
+    // normalized/deadzoned values that reach the engine. The raw values
+    // tell us if drift is exceeding the deadzone; the normalized values
+    // tell us if a non-zero value is leaking through to IN_MoveCamera.
+    // data.len tells us how much of padData the pad actually filled this
+    // frame -- if it's small (< 8 or so) the analog fields weren't in
+    // the report and we're reading carryover from the static buffer.
+    static int axis_trace_counter = 0;
+    if (++axis_trace_counter >= 30) {
+        axis_trace_counter = 0;
+        SYS_TRACE("[pad] axes len=%d raw L=(%u,%u) R=(%u,%u) "
+                  "norm L=(%.3f,%.3f) R=(%.3f,%.3f)\n",
+                  (int) data.len,
+                  (unsigned) (u8) data.ANA_L_H, (unsigned) (u8) data.ANA_L_V,
+                  (unsigned) (u8) data.ANA_R_H, (unsigned) (u8) data.ANA_R_V,
+                  axes[PAD_AXIS_LEFTX].value, axes[PAD_AXIS_LEFTY].value,
+                  axes[PAD_AXIS_RIGHTX].value, axes[PAD_AXIS_RIGHTY].value);
+    }
 }
 
 #endif // CHOCOLATE_QUAKE_PS3
@@ -594,6 +642,22 @@ static void IN_MoveCamera(const analog_stick_t* look) {
     const float time = (float) host_frametime;
     const float pitch_dir = (joy_invert.value != 0 ? -1.0f : 1.0f);
 
+    // Trace every frame the camera is actually being rotated by the pad.
+    // If the user reports spin but these lines are absent, the spin is
+    // coming from somewhere other than the pad path (e.g. a stuck
+    // +left/+right kbutton). If these lines show look=(0.05, 0) with the
+    // stick at rest, drift is leaking past the deadzone.
+#ifdef CHOCOLATE_QUAKE_PS3
+    if (look->x != 0.0f || look->y != 0.0f) {
+        SYS_TRACE("[pad] cam: look=(%.3f,%.3f) yaw -= %.3f*%.0f*%.4f = %.4f "
+                  "viewangles[YAW]=%.2f\n",
+                  look->x, look->y,
+                  look->x, joy_sensitivity_yaw.value, time,
+                  -look->x * joy_sensitivity_yaw.value * time,
+                  cl.viewangles[YAW]);
+    }
+#endif
+
     float joy_sensitivity = joy_sensitivity_yaw.value;
     cl.viewangles[YAW] -= look->x * joy_sensitivity * time;
 
@@ -634,6 +698,19 @@ void IN_JoyMove(usercmd_t* cmd) {
     analog_stick_t left;
     analog_stick_t right;
     IN_ReadAnalogSticks(&left, &right);
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Periodic post-deadzone dump. These are the values actually fed to
+    // IN_MovePlayer / IN_MoveCamera. If these are zero with the stick at
+    // rest but the camera still spins, the cause is upstream of the pad.
+    static int move_trace_counter = 0;
+    if (++move_trace_counter >= 30) {
+        move_trace_counter = 0;
+        SYS_TRACE("[pad] move: post-dz L=(%.3f,%.3f) R=(%.3f,%.3f) "
+                  "fwd=%d side=%d\n",
+                  left.x, left.y, right.x, right.y,
+                  (int) cmd->forwardmove, (int) cmd->sidemove);
+    }
+#endif
     IN_MovePlayer(cmd, &left);
     IN_MoveCamera(&right);
 }
