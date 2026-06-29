@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
     // the still-running worker thread. The PS-button XMB exit path
     // (sysProcessExit from the sysutil callback) still fires immediately
     // and bypasses this sleep.
-#define PS3_WATCHDOG_SECONDS  20
+#define PS3_WATCHDOG_SECONDS  30
     usleep(PS3_WATCHDOG_SECONDS * 1000 * 1000);
     // Disambiguator: this fires only when the worker thread has not exited on
     // its own within the watchdog window. If this is the last line of the log,

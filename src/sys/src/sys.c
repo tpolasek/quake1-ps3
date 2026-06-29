@@ -268,6 +268,10 @@ void Sys_SendKeyEvents() {
             case SDL_MOUSEWHEEL:
                 IN_MouseEvent(&event);
                 break;
+#ifndef CHOCOLATE_QUAKE_PS3
+            // PS3 polls the DualShock 3 directly via PSL1GHT (see
+            // IN_PollGamepad below) -- SDL_GameController never produces
+            // useful events there.
             case SDL_CONTROLLERDEVICEADDED:
             case SDL_CONTROLLERDEVICEREMOVED:
             case SDL_CONTROLLERBUTTONDOWN:
@@ -275,6 +279,7 @@ void Sys_SendKeyEvents() {
             case SDL_CONTROLLERAXISMOTION:
                 IN_GamepadEvent(&event);
                 break;
+#endif
             case SDL_QUIT:
                 Sys_QuitEvent();
                 break;
@@ -282,6 +287,12 @@ void Sys_SendKeyEvents() {
                 break;
         }
     }
+#ifdef CHOCOLATE_QUAKE_PS3
+    // Pump the DualShock 3 every frame. SDL_PollEvent above still runs so
+    // we catch SDL_QUIT and any future SDL-side events, but on PS3 the pad
+    // has its own (lower-latency) path through PSL1GHT's io/pad.h.
+    IN_PollGamepad();
+#endif
 }
 
 //==============================================================================
@@ -351,6 +362,14 @@ static void Sys_SigInit(void) {
 #define PS3_LOG_PATH "/dev_hdd0/game/CHQK00001/USRDIR/chocolate-quake.log"
 
 static void Sys_OpenLog(void) {
+    // Logging to chocolate-quake.log is currently disabled -- the renderer
+    // is stable now and we don't need per-run FTP log pulls for debugging.
+    // Re-enable by deleting this early return (freopen below redirects
+    // stdout to PS3_LOG_PATH; Sys_Printf / SYS_TRACE / Sys_Error all go
+    // through stdout, so a single freopen is all it takes to bring them
+    // back). SYS_TRACE calls throughout the codebase are left in place;
+    // with logging off they just write to the void.
+    return;
     // PS3 newlib has no dup2, so we redirect stdout to the log file via
     // freopen (any printf / Sys_Printf output lands here automatically).
     // Sys_Error writes to stdout rather than stderr so its output is
