@@ -230,11 +230,6 @@ void S_Init(void) {
         return;
     }
 
-    // provides a tick sound until washed clean
-    //    if (shm->buffer) {
-    //        shm->buffer[4] = shm->buffer[5] = 0x7f; // force a pop for debugging
-    //    }
-
     S_PrecacheAmbientSound();
     S_CodecInit();
     S_StopAllSounds(true);

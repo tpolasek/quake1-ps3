@@ -445,6 +445,8 @@ void S_PaintChannels(i32 endtime) {
         }
         // Transfer out according to DMA format.
         S_TransferPaintBuffer(end);
+        /* Ensure all buffer writes are visible to audio thread before advancing paintedtime */
+        __asm__ volatile("lwsync" ::: "memory");
 
         paintedtime = end;
     }

@@ -12,14 +12,14 @@ add_library(${LIB} STATIC
     src/snd_mp3.c
     src/snd_mp3.h
     src/snd_mp3tag.c
-    src/snd_sdl.c
+    src/snd_ps3.c
     src/snd_vorbis.c
     src/snd_vorbis.h
     src/snd_wave.c
     src/snd_wave.h
 )
 
-set(LIBS ${SDL2_LIBRARIES})
+set(LIBS)
 if(VORBISFILE_LIBRARY)
     # Linux / PS3: find_library results from the top-level CMakeLists.txt.
     # Order matters with static libs (dependent must precede dependency):
