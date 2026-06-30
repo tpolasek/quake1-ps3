@@ -89,21 +89,27 @@ top of `cmake/ps3/make_pkg.sh`.
 | File                                | Purpose                                  |
 |-------------------------------------|------------------------------------------|
 | `cmake/ps3.toolchain.cmake`         | CMake toolchain (ppu-gcc, ps3dev sysroot)|
-| `cmake/FindSDL2.cmake`              | Wraps `sdl2-config` -> `SDL2::SDL2`      |
-| `cmake/ps3/sdl2_net_stub/`          | Stub `SDL_net` (ps3dev has no SDL2_net)  |
+| `cmake/ps3/sdl2_net_stub/`          | SDL-free `SDL_net` API stub (ps3dev has  |
+|                                     | no SDL2_net); `src/net/` links here      |
 | `cmake/ps3/make_pkg.sh`             | Packaging script                         |
 
-### Source patches gated on `CHOCOLATE_QUAKE_PS3`
+### Native PSL1GHT backends (SDL2 removed)
 
-The macro is defined project-wide by `CMakeLists.txt` only when the PS3
-toolchain is active, so the desktop builds are byte-for-byte unchanged.
+The port is PS3-only and uses PSL1GHT APIs directly -- there is no SDL in the
+source, the build, or the link line. Backends:
 
-| File:line                           | Change                                   |
-|-------------------------------------|------------------------------------------|
-| `src/sys/src/sys.c:312-339`         | `Sys_GetDefaultBaseDir` uses `SDL_GetBasePath()` so the game finds `id1/` next to `EBOOT.BIN` (`/dev_hdd0/game/CHQK00001/USRDIR/`) instead of SDL's per-title savedata dir |
-| `src/sys/src/sys.c:311-318`         | `DEFAULT_MEMORY` lowered to 128 MB (PS3 main RAM is 256 MB shared) |
-| `src/video/src/vid_window.c:87-96`  | Sets `SDL_HINT_RENDER_SCALE_QUALITY=0` before texture creation so the 320x200 framebuffer upscales with crisp nearest-neighbour pixels, not bilinear blur |
-| `src/input/src/in_gamepad.c:406-470`| Registers a `SDL_GameController` mapping for the DualShock 3 (the PSL1GHT driver exposes it as a joystick without a default mapping) and opens it at startup |
+| Subsystem | Backend                                                                |
+|-----------|------------------------------------------------------------------------|
+| video     | Native RSX via `src/video/src/vid_ps3.c`; the 8-bit framebuffer is     |
+|           | expanded to ARGB on the PPU, then upscaled and flipped through gcm     |
+| sound     | Native libaudio via `src/sound/src/snd_ps3.c`; block-based float32 DMA |
+|           | with event-queue sync, int16 mix -> float32 in `SNDDMA_Submit`         |
+| input     | PSL1GHT pad API polled each frame in `src/input/src/in_gamepad.c`      |
+|           | (pad-only -- keyboard and mouse are gone)                              |
+| timer     | `sysGetSystemTime()` in `Sys_FloatTime` (no SDL timer init)            |
+
+The top-level `CMakeLists.txt` links the PSL1GHT runtime libs directly:
+`-lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lm`.
 
 ## Notes / caveats
 
@@ -112,10 +118,11 @@ toolchain is active, so the desktop builds are byte-for-byte unchanged.
   ```bash
   sudo chown -R $USER:$USER build-ps3 chocolate-quake.pkg
   ```
-- **Networking is stubbed.** The ps3dev image has no SDL2_net (only SDL1's
-  `SDL_net`, which is ABI-incompatible with SDL2). LAN/online multiplayer
-  will not work; the rest of the game should.
-- **Runtime data path.** chocolate-quake is a desktop port and may not
-  resolve its data directory on PS3 automatically. If the game boots but
-  reports missing pak files, inspect `src/sys/src/sys.c` (`Sys_Init`) and
-  point the basedir at `/dev_hdd0/game/CHQK00001/USRDIR`.
+- **Networking is stubbed.** `src/net/` links against an SDL-free `SDL_net`
+  API stub (`cmake/ps3/sdl2_net_stub/`); every `SDLNet_*` call fails
+  gracefully. LAN/online multiplayer will not work; single-player and demo
+  playback should.
+- **Runtime data path.** `Sys_GetDefaultBaseDir` hardcodes
+  `/dev_hdd0/game/CHQK00001/USRDIR` as the basedir (where `make_pkg.sh`
+  installs `id1/` next to `EBOOT.BIN`). If you change the title ID, update
+  both `cmake/ps3/make_pkg.sh` and that constant in `src/sys/src/sys.c`.
