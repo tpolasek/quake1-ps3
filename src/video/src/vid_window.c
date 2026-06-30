@@ -26,13 +26,78 @@
 #include "input.h"
 #include "sys.h"
 #include "vid_buffers.h"
+
+#ifdef CHOCOLATE_QUAKE_PS3
+
+/*
+================================================================================
+
+PS3 NATIVE WINDOW (no SDL)
+
+================================================================================
+*/
+
+static cvar_t _windowed_mouse = {"_windowed_mouse", "0", true};
+
+static void VID_RegisterCvars(void) {
+    Cvar_RegisterVariable(&_windowed_mouse);
+}
+
+void VID_InitWindow(void) {
+    VID_RegisterCvars();
+    VID_PS3_Init();
+}
+
+void VID_ShutdownWindow(void) {
+    VID_PS3_Shutdown();
+}
+
+static void VID_UpdateScreen(vrect_t* rect) {
+    if (!rect) return;
+    VID_UpdateAndPresent(rect);
+}
+
+void VID_UpdateWindow(vrect_t* rect) {
+    VID_UpdateScreen(rect);
+}
+
+void VID_ResizeScreen(void) {
+    VID_ReallocBuffers();
+}
+
+// Mouse stubs — no mouse on PS3.
+static void VID_CenterMouse(void) {}
+static void VID_ReleaseMouse(void) { IN_DeactivateMouse(); }
+static void VID_GrabMouse(void) { IN_ActivateMouse(); }
+qboolean VID_WindowedMouse(void) { return false; }
+void VID_ToggleMouseGrab(void) {}
+void VID_HandlePause(qboolean pause) { (void)pause; }
+void VID_MinimizeWindow(void) {}
+
+// Mode stubs — single fixed mode on PS3.
+static void VID_SetWindowed(void) {}
+static void VID_SetFullscreen(void) {}
+
+//==============================================================================
+
+
+#else /* !CHOCOLATE_QUAKE_PS3 */
+
+
+/*
+================================================================================
+
+DESKTOP SDL WINDOW
+
+================================================================================
+*/
+
 #include <SDL_hints.h>
 
 static SDL_Window* window = NULL;
 static SDL_Renderer* renderer = NULL;
 
 // The intermediate texture that we load the RGBA buffer to.
-// NULL on PS3 (direct RSX path, no SDL_Renderer).
 static SDL_Texture* texture = NULL;
 
 extern const u32 pixel_format;
@@ -54,13 +119,8 @@ static void VID_CreateRenderer(void) {
     u32 flags = SDL_RENDERER_TARGETTEXTURE;
     renderer = SDL_CreateRenderer(window, index, flags);
 
-    // Important: Set the "logical size" of the rendering context. At the same
-    // time this also defines the aspect ratio that is preserved while scaling
-    // and stretching the texture into the window.
     SDL_RenderSetLogicalSize(renderer, 320, 240);
 
-    // Blank out the full screen area in case there is any junk in
-    // the borders that won't otherwise be overwritten.
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
@@ -88,20 +148,10 @@ static void VID_RegisterCvars(void) {
 void VID_InitWindow(void) {
     VID_RegisterCvars();
     VID_CreateWindow();
-#ifdef CHOCOLATE_QUAKE_PS3
-    // PS3: bypass SDL_Renderer. Use PSL1GHT's RSX/GCM API directly for
-    // the display flip. SDL's window is still created for event/input
-    // handling, but the renderer is never initialised.
-    VID_PS3_Init();
-#else
     VID_CreateRenderer();
-#endif
 }
 
 void VID_ShutdownWindow(void) {
-#ifdef CHOCOLATE_QUAKE_PS3
-    VID_PS3_Shutdown();
-#else
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = NULL;
@@ -110,7 +160,6 @@ void VID_ShutdownWindow(void) {
         SDL_DestroyRenderer(renderer);
         renderer = NULL;
     }
-#endif
     if (window) {
         SDL_DestroyWindow(window);
         window = NULL;
@@ -190,33 +239,19 @@ static void VID_SetFullscreen(void) {
     VID_GrabMouse();
 }
 
-//
-// Create the intermediate texture that the RGBA surface gets loaded into.
-//
 static void VID_AllocTexture(void) {
-    // PS3: use STATIC access + SDL_UpdateTexture instead of STREAMING +
-    // LockTexture/UnlockTexture. The PSL1GHT SDL2 RSX backend's streaming
-    // path leaks an upload buffer per frame and hangs inside
-    // SDL_RenderPresent after ~127 frames. STATIC + UpdateTexture uses a
-    // single memcpy into GPU memory per frame with no buffer pool.
-#ifdef CHOCOLATE_QUAKE_PS3
-    int access = SDL_TEXTUREACCESS_STATIC;
-#else
     int access = SDL_TEXTUREACCESS_STREAMING;
-#endif
     int w = (int) vid.width;
     int h = (int) vid.height;
     texture = SDL_CreateTexture(renderer, pixel_format, access, w, h);
 }
 
 void VID_ResizeScreen(void) {
-#ifndef CHOCOLATE_QUAKE_PS3
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = NULL;
     }
     VID_AllocTexture();
-#endif
     VID_ReallocBuffers();
     if (VID_IsFullscreenMode()) {
         VID_SetFullscreen();
@@ -233,7 +268,6 @@ static void VID_UpdateMouse(void) {
         return;
     }
     if (windowed_mouse != VID_WindowedMouse()) {
-        // Handle the mouse state when windowed if that's changed.
         VID_ToggleMouseGrab();
     }
 }
@@ -242,20 +276,10 @@ static void VID_UpdateScreen(vrect_t* rect) {
     if (!rect) {
         return;
     }
-    // Convert 8-bit screen buffer → 32-bit ARGB ( VID_UpdateTexture handles
-    // this; on PS3 it does only the LowerBlit, no texture upload).
     VID_UpdateTexture(texture, rect);
-#ifdef CHOCOLATE_QUAKE_PS3
-    // Direct RSX path: scale the ARGB buffer to display resolution and flip.
-    VID_PS3_Present(VID_GetARGBPixels(), (int) vid.width, (int) vid.height);
-#else
-    // Clear the renderer's backbuffer to remove any previous contents.
     SDL_RenderClear(renderer);
-    // Copy the updated texture to the backbuffer for rendering.
     SDL_RenderCopy(renderer, texture, NULL, NULL);
-    // Present the backbuffer content to the screen.
     SDL_RenderPresent(renderer);
-#endif
 }
 
 void VID_UpdateWindow(vrect_t* rect) {
@@ -277,3 +301,5 @@ void VID_HandlePause(qboolean pause) {
 void VID_MinimizeWindow(void) {
     SDL_MinimizeWindow(window);
 }
+
+#endif /* CHOCOLATE_QUAKE_PS3 */

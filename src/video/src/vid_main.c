@@ -24,7 +24,9 @@
 #include "vid_buffers.h"
 #include "vid_modes.h"
 #include "vid_window.h"
+#ifndef CHOCOLATE_QUAKE_PS3
 #include <SDL.h>
+#endif
 
 
 //
@@ -35,13 +37,17 @@ static qboolean vid_initialized = false;
 
 static byte backingbuf[48 * 24];
 
+#ifndef CHOCOLATE_QUAKE_PS3
 const u32 pixel_format = SDL_PIXELFORMAT_ARGB8888;
+#endif
 
 
 void VID_Init(const byte* palette) {
+#ifndef CHOCOLATE_QUAKE_PS3
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         Sys_Error("Failed to initialize video: %s", SDL_GetError());
     }
+#endif
     VID_InitWindow();
     VID_InitModes();
     VID_SetPalette(palette);
@@ -54,7 +60,9 @@ void VID_Shutdown(void) {
     }
     VID_ShutdownWindow();
     VID_FreeBuffers();
+#ifndef CHOCOLATE_QUAKE_PS3
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
+#endif
     vid_initialized = false;
 }
 

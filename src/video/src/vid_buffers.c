@@ -25,6 +25,188 @@
 #include "sys.h"
 
 
+#ifdef CHOCOLATE_QUAKE_PS3
+
+/*
+================================================================================
+
+PS3 NATIVE BUFFERS (no SDL)
+
+================================================================================
+*/
+
+#include <string.h>
+
+static byte *screen_buffer = NULL;   // 8-bit paletted (vid.buffer points here)
+static u32  *argb_buffer = NULL;     // 32-bit ARGB intermediate
+static u32   pal32[256];             // 32-bit ARGB palette
+static qboolean palette_changed;
+
+static i32 VID_highhunkmark;
+static i32 vid_surfcachesize;
+
+
+/*
+================================================================================
+
+PALETTE
+
+================================================================================
+*/
+
+// PS3 is big-endian: ARGB means bytes [A][R][G][B] in memory, which is
+// 0xAARRGGBB as a u32 on big-endian.
+
+static void VID_UpdatePalette(void) {
+    palette_changed = true;
+}
+
+void VID_SetPalette(const byte* palette) {
+    for (int i = 0; i < 256; i++) {
+        u32 r = (u32)(palette[i * 3] & ~3);
+        u32 g = (u32)(palette[i * 3 + 1] & ~3);
+        u32 b = (u32)(palette[i * 3 + 2] & ~3);
+        pal32[i] = (0xFF000000u) | (r << 16) | (g << 8) | b;
+    }
+    palette_changed = true;
+}
+
+void VID_ShiftPalette(const byte* palette) {
+    VID_SetPalette(palette);
+}
+
+//==============================================================================
+
+
+/*
+================================================================================
+
+INITIALIZATION AND SHUTDOWN
+
+================================================================================
+*/
+
+static void VID_AllocSurfaceCache() {
+    byte* buffer = (byte*) d_pzbuffer;
+    size_t cache_offset = vid.width * vid.height * sizeof(*d_pzbuffer);
+    byte* cache = &buffer[cache_offset];
+    D_InitCaches(cache, vid_surfcachesize);
+}
+
+static void VID_AllocZBuffer() {
+    i32 chunk = vid.width * vid.height * sizeof(*d_pzbuffer);
+    chunk += vid_surfcachesize;
+    VID_highhunkmark = Hunk_HighMark();
+    d_pzbuffer = Hunk_HighAllocName(chunk, "video");
+    if (!d_pzbuffer) {
+        Sys_Error("Not enough memory for video mode\n");
+    }
+}
+
+static void VID_AllocRgbaBuffer(void) {
+    int size = vid.width * vid.height * sizeof(u32);
+    argb_buffer = (u32*) Q_calloc(1, size);
+}
+
+static void VID_AllocScreenBuffer(void) {
+    int size = vid.width * vid.height;
+    screen_buffer = (byte*) Q_calloc(1, size);
+    memset(screen_buffer, 0, size);
+    vid.buffer = screen_buffer;
+}
+
+void VID_ReallocBuffers(void) {
+    VID_FreeBuffers();
+
+    vid_surfcachesize = D_SurfaceCacheForRes(vid.width, vid.height);
+    VID_AllocScreenBuffer();
+    VID_AllocRgbaBuffer();
+    VID_AllocZBuffer();
+    VID_AllocSurfaceCache();
+
+    VID_UpdatePalette();
+}
+
+void VID_FreeBuffers(void) {
+    if (screen_buffer) {
+        Q_free(screen_buffer);
+        screen_buffer = NULL;
+    }
+    if (argb_buffer) {
+        Q_free(argb_buffer);
+        argb_buffer = NULL;
+    }
+    if (d_pzbuffer) {
+        D_FlushCaches();
+        Hunk_FreeToHighMark(VID_highhunkmark);
+        d_pzbuffer = NULL;
+    }
+}
+
+//==============================================================================
+
+
+/*
+================================================================================
+
+BUFFER ACCESS
+
+================================================================================
+*/
+
+void VID_LockBuffer(void) {
+    // No-op: single-threaded, no surface locking needed.
+}
+
+void VID_UnlockBuffer(void) {
+    // No-op.
+}
+
+// CPU palette expansion + present:
+// Expand the dirty rect from 8-bit paletted to 32-bit ARGB, then hand
+// the full ARGB buffer to vid_ps3.c for upscale + flip.
+void VID_UpdateAndPresent(vrect_t* rect) {
+    if (!argb_buffer || !screen_buffer) return;
+
+    if (palette_changed) {
+        rect->x = 0;
+        rect->y = 0;
+        rect->width = vid.width;
+        rect->height = vid.height;
+        palette_changed = false;
+    }
+
+    // 8-bit → 32-bit expansion for the dirty rect
+    for (int y = rect->y; y < rect->y + rect->height; y++) {
+        const byte *src = screen_buffer + y * vid.width + rect->x;
+        u32        *dst = argb_buffer  + y * vid.width + rect->x;
+        for (int x = 0; x < rect->width; x++) {
+            dst[x] = pal32[src[x]];
+        }
+    }
+
+    // Hand the full ARGB buffer to vid_ps3.c for upscale + flip
+    VID_PS3_Present(argb_buffer, (int) vid.width, (int) vid.height);
+}
+
+void* VID_GetARGBPixels(void) {
+    return argb_buffer;
+}
+
+//==============================================================================
+
+
+#else /* !CHOCOLATE_QUAKE_PS3 */
+
+
+/*
+================================================================================
+
+DESKTOP SDL BUFFERS
+
+================================================================================
+*/
+
 // The paletted buffer that we draw to (i.e. the one that holds vid_buffer).
 static SDL_Surface* screen_buffer = NULL;
 
@@ -55,14 +237,11 @@ static void VID_UpdatePalette(void) {
 }
 
 void VID_SetPalette(const byte* palette) {
-    // Translate the palette values to an SDL palette array and set the values.
     for (i32 i = 0; i < 256; i++) {
         byte r = palette[i * 3];
         byte g = palette[(i * 3) + 1];
         byte b = palette[(i * 3) + 2];
 
-        // Zero out the bottom two bits of each channel:
-        // the PC VGA controller only supports 6 bits of accuracy.
         pal[i].r = r & ~3;
         pal[i].g = g & ~3;
         pal[i].b = b & ~3;
@@ -104,33 +283,17 @@ static void VID_AllocZBuffer() {
     }
 }
 
-//
-// Create the 32-bit RGBA buffer. Format of argb_buffer must match the
-// screen pixel format because we import the surface data into the texture.
-//
-// On PS3 the texture uses STATIC access (see vid_window.c), so argb_buffer
-// owns its own pixel memory -- SDL_UpdateTexture reads from it each frame.
-// On desktop the texture is STREAMING and argb_buffer is a thin wrapper
-// whose pixels pointer is filled in by SDL_LockTexture.
-//
 static void VID_AllocRgbaBuffer(void) {
     int w = (int) vid.width;
     int h = (int) vid.height;
-#ifdef CHOCOLATE_QUAKE_PS3
-    argb_buffer = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, pixel_format);
-#else
     void* pixels = NULL;
     int depth = 0;
     int pitch = 0;
     argb_buffer = SDL_CreateRGBSurfaceWithFormatFrom(
         pixels, w, h, depth, pitch, pixel_format
     );
-#endif
 }
 
-//
-// Create the 8-bit paletted screen buffer.
-//
 static void VID_AllocScreenBuffer(void) {
     u32 flags = 0;
     int w = (int) vid.width;
@@ -199,15 +362,9 @@ void VID_UnlockBuffer(void) {
     SDL_UnlockSurface(screen_buffer);
 }
 
-//
-// Blit from the paletted 8-bit screen buffer to the intermediate
-// 32-bit RGBA buffer and then update the intermediate texture with
-// the contents of the RGBA buffer.
-//
 void VID_UpdateTexture(SDL_Texture* texture, vrect_t* rect) {
     if (palette_changed) {
         VID_UpdatePalette();
-        // Ensure we blit the whole screen after updating the palette.
         rect->x = 0;
         rect->x = 0;
         rect->width = (i32) vid.width;
@@ -225,22 +382,13 @@ void VID_UpdateTexture(SDL_Texture* texture, vrect_t* rect) {
         .w = rect->width,
         .h = rect->height,
     };
-#ifdef CHOCOLATE_QUAKE_PS3
-    // PS3 direct-RSX path: just do the 8-bit → 32-bit conversion into
-    // argb_buffer. The actual display upload + flip is handled by
-    // VID_PS3_Present() which reads argb_buffer->pixels directly.
-    SDL_LowerBlit(screen_buffer, &src_rect, argb_buffer, &dst_rect);
-#else
     SDL_LockTexture(texture, &src_rect, &argb_buffer->pixels,
                     &argb_buffer->pitch);
     SDL_LowerBlit(screen_buffer, &src_rect, argb_buffer, &dst_rect);
     SDL_UnlockTexture(texture);
-#endif
 }
 
 void VID_BlitToSurface(SDL_Surface* dst) {
-    // Scale the 320x200 argb_buffer to the destination surface (typically
-    // the full-screen window surface on PS3).
     SDL_BlitScaled(argb_buffer, NULL, dst, NULL);
 }
 
@@ -250,3 +398,4 @@ void* VID_GetARGBPixels(void) {
 
 //==============================================================================
 
+#endif /* CHOCOLATE_QUAKE_PS3 */

@@ -23,17 +23,23 @@
 
 #include "quakedef.h"
 #include "vid.h"
+#ifndef CHOCOLATE_QUAKE_PS3
 #include <SDL_render.h>
+#endif
 
 void VID_ReallocBuffers(void);
 
 void VID_FreeBuffers(void);
 
+#ifndef CHOCOLATE_QUAKE_PS3
 void VID_UpdateTexture(SDL_Texture* texture, vrect_t* rect);
-
-// PS3: blit the 32-bit RGBA intermediate buffer to the window surface.
-// Used by the window-surface display path that bypasses SDL_Renderer.
 void VID_BlitToSurface(SDL_Surface* dst);
+#endif
+
+#ifdef CHOCOLATE_QUAKE_PS3
+// PS3: CPU palette expansion + direct RSX present (no SDL texture).
+void VID_UpdateAndPresent(vrect_t* rect);
+#endif
 
 // PS3 direct-RSX backend (vid_ps3.c).
 void VID_PS3_Init(void);
