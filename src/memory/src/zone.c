@@ -24,7 +24,6 @@
 #include "cmd.h"
 #include "console.h"
 #include "sys.h"
-#include <SDL_stdinc.h>
 #include <string.h>
 
 

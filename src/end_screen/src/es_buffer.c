@@ -64,7 +64,7 @@ static byte* ES_GetScreenData(void) {
 
     // Write the version number directly to the end screen.
     char ver[7];
-    SDL_snprintf(ver, 7, " v%4.2f", VERSION);
+    snprintf(ver, 7, " v%4.2f", VERSION);
     for (i32 i = 0; i < 6; i++) {
         screen_data[(72 + i) * 2] = ver[i];
     }

@@ -23,7 +23,9 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-#include <SDL_stdinc.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
 
 
 #ifndef NULL
@@ -43,17 +45,28 @@
 #define Q_MINFLOAT ((i32) 0x7fffffff)
 
 
-typedef Uint8 byte;
+typedef uint8_t byte;
 
-typedef Uint8 u8;
-typedef Uint16 u16;
-typedef Uint32 u32;
-typedef Uint64 u64;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
 
-typedef Sint8 i8;
-typedef Sint16 i16;
-typedef Sint32 i32;
-typedef Sint64 i64;
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+/* SDL-compatible helper macros (no longer depend on SDL_stdinc.h) */
+#ifndef SDL_min
+#define SDL_min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef SDL_clamp
+#define SDL_clamp(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#endif
+#ifndef SDL_arraysize
+#define SDL_arraysize(array) (sizeof(array) / sizeof((array)[0]))
+#endif
 
 #undef true
 #undef false

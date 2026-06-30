@@ -21,7 +21,6 @@
 
 
 #include "sound.h"
-#include <SDL_stdinc.h>
 #include <stdlib.h>
 
 

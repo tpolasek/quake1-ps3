@@ -22,22 +22,23 @@
 
 #include "quakedef.h"
 #include "net.h"
+#include <stdlib.h>
 
 
 void* Q_malloc(size_t size) {
-    return SDL_malloc(size);
+    return malloc(size);
 }
 
 void* Q_calloc(size_t num, size_t size) {
-    return SDL_calloc(num, size);
+    return calloc(num, size);
 }
 
 void Q_free(void* ptr) {
-    SDL_free(ptr);
+    free(ptr);
 }
 
 long Q_strtol(const char* str, char** str_end, int base) {
-    return SDL_strtol(str, str_end, base);
+    return strtol(str, str_end, base);
 }
 
 i32 Q_atoi(const char* str) {

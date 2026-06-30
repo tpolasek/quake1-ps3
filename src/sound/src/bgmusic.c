@@ -25,7 +25,6 @@
 #include "console.h"
 #include "snd_codec.h"
 #include "sound.h"
-#include <SDL_stdinc.h>
 
 
 #define MUSIC_DIRNAME "music"

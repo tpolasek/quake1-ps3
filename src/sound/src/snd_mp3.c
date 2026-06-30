@@ -21,9 +21,11 @@
 #include "snd_mp3.h"
 #include "console.h"
 #include <mad.h>
-#include <SDL_endian.h>
-#include <SDL_stdinc.h>
 
+// PS3 is big-endian, so little-endian → host swap is a real byte swap.
+static inline uint16_t swap_le16(uint16_t x) {
+    return (uint16_t)((x >> 8) | (x << 8));
+}
 
 // Under Windows, importing data from DLLs is a dicey proposition.
 // This is true when using dlopen, but also true if linking directly
@@ -179,7 +181,7 @@ static i32 MP3_Decode(snd_stream_t* stream, byte* buf, i32 len) {
                     sample = 0x7FFF;
                 else
                     sample >>= (MAD_F_FRACBITS + 1 - 16);
-                sample = SDL_SwapLE16(sample);
+                sample = swap_le16(sample);
                 *buf++ = sample & 0xFF;
                 *buf++ = (sample >> 8) & 0xFF;
                 i++;

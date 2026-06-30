@@ -22,7 +22,6 @@
 #include "snd_vorbis.h"
 #include "console.h"
 #include "zone.h"
-#include <SDL_endian.h>
 
 #define OV_EXCLUDE_STATIC_CALLBACKS
 #include <vorbis/vorbisfile.h>
@@ -119,7 +118,7 @@ static i32 S_VORBIS_CodecReadStream(
     i32 bytes,
     void* buffer
 ) {
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     qboolean host_bigendian = true;
 #else
     qboolean host_bigendian = false;

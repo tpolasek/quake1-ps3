@@ -22,77 +22,56 @@
 
 #include "quakedef.h"
 #include "net.h"
+#include <string.h>
+#include <strings.h>
 
 
 void* Q_memmove(void* dest, const void* src, size_t count) {
-    return SDL_memmove(dest, src, count);
+    return memmove(dest, src, count);
 }
 
 void Q_memset(void* dest, int fill, size_t count) {
-    SDL_memset(dest, fill, count);
+    memset(dest, fill, count);
 }
 
 void Q_memcpy(void* dest, const void* src, size_t count) {
-    SDL_memcpy(dest, src, count);
+    memcpy(dest, src, count);
 }
 
 int Q_memcmp(const void* m1, const void* m2, size_t count) {
-    return SDL_memcmp(m1, m2, count);
+    return memcmp(m1, m2, count);
 }
 
 void Q_strcpy(char* dest, const char* src) {
-#ifdef HAVE_STRCPY
     strcpy(dest, src);
-#else
-    while (*src) {
-        *dest++ = *src++;
-    }
-    *dest = 0;
-#endif
-
 }
 
 void Q_strncpy(char* dest, const char* src, size_t count) {
-#ifdef HAVE_STRNCPY
     strncpy(dest, src, count);
-#else
-    while (count-- && *src) {
-        *dest++ = *src++;
-    }
-    if (count) {
-        *dest = 0;
-    }
-#endif
 }
 
 size_t Q_strlen(const char* str) {
-    return SDL_strlen(str);
+    return strlen(str);
 }
 
 char* Q_strrchr(const char* s, char c) {
-    return SDL_strrchr(s, c);
+    return strrchr(s, c);
 }
 
 void Q_strcat(char* dest, const char* src) {
-#ifdef HAVE_STRCAT
     strcat(dest, src);
-#else
-    dest += Q_strlen(dest);
-    Q_strcpy(dest, src);
-#endif
-
 }
 
 int Q_strcmp(const char* s1, const char* s2) {
-    return SDL_strcmp(s1, s2);
+    return strcmp(s1, s2);
 }
 
 int Q_strncmp(const char* s1, const char* s2, size_t count) {
-    return SDL_strncmp(s1, s2, count);
+    return strncmp(s1, s2, count);
 }
 
 int Q_strncasecmp(const char* s1, const char* s2, size_t n) {
-    return SDL_strncasecmp(s1, s2, n);
+    return strncasecmp(s1, s2, n);
 }
 
 int Q_strcasecmp(const char* s1, const char* s2) {
@@ -100,9 +79,9 @@ int Q_strcasecmp(const char* s1, const char* s2) {
 }
 
 char* Q_strchr(const char* str, int c) {
-    return SDL_strchr(str, c);
+    return strchr(str, c);
 }
 
 char* Q_strstr(const char* str, const char* substr) {
-    return SDL_strstr(str, substr);
+    return strstr(str, substr);
 }

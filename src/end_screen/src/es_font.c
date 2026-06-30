@@ -23,8 +23,8 @@
 #include "fonts/large.h"
 #include "fonts/normal.h"
 #include "fonts/small.h"
-#include <SDL_stdinc.h>
 #include <SDL_video.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -113,7 +113,7 @@ static i32 ES_CanUseLargeFont(void) {
 
 void ES_ChooseFont(void) {
     // Allow normal selection to be overridden from an environment variable:
-    const char* env = SDL_getenv("CQ_ENDSCREEN_FONT");
+    const char* env = getenv("CQ_ENDSCREEN_FONT");
     if (env) {
         const font_type_t type = ES_GetFontByName(env);
         if (type >= 0) {

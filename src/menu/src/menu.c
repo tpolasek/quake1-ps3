@@ -31,7 +31,6 @@
 #include "sound.h"
 #include "vid.h"
 #include "view.h"
-#include <SDL_stdinc.h>
 #include <string.h>
 
 
