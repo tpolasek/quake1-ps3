@@ -28,6 +28,7 @@
 #include "server.h"
 #include "sys.h"
 #include "world.h"
+#include <stdlib.h>
 #include <string.h>
 
 

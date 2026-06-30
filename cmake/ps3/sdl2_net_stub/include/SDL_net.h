@@ -12,8 +12,13 @@
  * with the network driver reporting failure at runtime as expected by
  * the rest of the engine.
  */
+//#include <SDL.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#include <SDL.h>
+typedef uint32_t Uint32;
+typedef uint16_t Uint16;
+typedef uint8_t  Uint8;
 
 #ifdef __cplusplus
 extern "C" {

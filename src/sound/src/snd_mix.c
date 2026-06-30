@@ -21,6 +21,7 @@
 
 
 #include "sound.h"
+#include <math.h>
 #include <stdlib.h>
 
 

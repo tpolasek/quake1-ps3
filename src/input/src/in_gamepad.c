@@ -46,6 +46,7 @@
 #else
 #include <io/pad.h>
 #endif
+#include <math.h>
 
 
 static cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", true};

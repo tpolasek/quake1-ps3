@@ -7,6 +7,13 @@
 #include "SDL_net.h"
 #include <string.h>
 
+static char net_error_buf[256] = "";
+
+static void NET_SetError(const char *msg) {
+    strncpy(net_error_buf, msg, sizeof(net_error_buf) - 1);
+    net_error_buf[sizeof(net_error_buf) - 1] = '\0';
+}
+
 /* PS3 newlib doesn't expose gethostname; provide a trivial stub so the
  * link succeeds. Networking is no-op'd by the rest of this stub. */
 int gethostname(char *name, size_t len) {
@@ -18,14 +25,14 @@ int gethostname(char *name, size_t len) {
 }
 
 int SDLNet_Init(void) {
-    SDL_SetError("SDL2_net stub: networking not available on PS3");
+    NET_SetError("SDL2_net stub: networking not available on PS3");
     return -1;
 }
 
 void SDLNet_Quit(void) {}
 
 const char *SDLNet_GetError(void) {
-    return SDL_GetError();
+    return net_error_buf;
 }
 
 int SDLNet_ResolveHost(IPaddress *address, const char *host, Uint16 port) {
@@ -34,7 +41,7 @@ int SDLNet_ResolveHost(IPaddress *address, const char *host, Uint16 port) {
         address->host = 0;
         address->port = 0;
     }
-    SDL_SetError("SDL2_net stub: networking not available on PS3");
+    NET_SetError("SDL2_net stub: networking not available on PS3");
     return -1;
 }
 
@@ -45,7 +52,7 @@ const char *SDLNet_ResolveIP(const IPaddress *ip) {
 
 UDPsocket SDLNet_UDP_Open(Uint16 port) {
     (void)port;
-    SDL_SetError("SDL2_net stub: networking not available on PS3");
+    NET_SetError("SDL2_net stub: networking not available on PS3");
     return NULL;
 }
 

@@ -4,6 +4,15 @@ cmake_minimum_required(VERSION 3.21.0)
 project("Chocolate Quake" VERSION 2.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 
+# C89's implicit-function-declaration fallback has caused real ABI-truncation
+# bugs on PS3 (PPC64: int return read from r3 while the real function returns
+# double in f1, silently corrupting parsed values). Force this class of bug
+# to be a compile error.
+add_compile_options(
+    -Werror=implicit-function-declaration
+    -Werror=implicit-int
+)
+
 string(TIMESTAMP CURRENT_YEAR "%Y")
 set(PACKAGE_NAME ${PROJECT_NAME})
 set(PACKAGE_TARNAME "chocolate-quake")
