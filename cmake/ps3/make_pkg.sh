@@ -3,9 +3,10 @@
 # Packages the chocolate-quake PS3 (PPU) executable into an installable
 # .pkg, bundling the Quake 1 id1/ data files alongside EBOOT.BIN.
 #
-# Run this *inside* the ps3dev-sdl2 docker container (or any ps3dev
-# environment that has ppu-strip, sprxlinker, make_self_npdrm, sfo.py,
-# pkg.py on PATH). Paths are relative to the repo root.
+# Run this from the host with the ps3dev tools (ppu-strip, sprxlinker,
+# make_self_npdrm, sfo.py, pkg.py) on PATH -- e.g. with $PS3DEV set and
+# $PS3DEV/ppu/bin:$PS3DEV/bin prepended to PATH. Paths are relative to
+# the repo root.
 #
 # Usage:
 #   cmake/ps3/make_pkg.sh <elf> <id1_dir> <out_pkg>
@@ -52,7 +53,7 @@ cp -a "${ID1_DIR}/." "${USRDIR}/id1/"
 
 echo "[5/6] Generating PARAM.SFO"
 SFO_XML="${WORK}/sfo.xml"
-cp /usr/local/ps3dev/bin/sfo.xml "${SFO_XML}"
+cp "${PS3DEV:-/usr/local/ps3dev}/bin/sfo.xml" "${SFO_XML}"
 sed -i "s/01\.00/${APP_VER}/g" "${SFO_XML}"
 sfo.py --title "${TITLE}" --appid "${TITLE_ID}" -f "${SFO_XML}" "${PKG_DIR}/PARAM.SFO"
 

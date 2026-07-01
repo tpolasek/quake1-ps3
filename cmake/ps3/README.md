@@ -1,31 +1,28 @@
 # Building `chocolate-quake.pkg` for PS3
 
 This produces an installable PS3 package (.pkg) from the chocolate-quake
-source, cross-compiling for the PS3's PPU (PowerPC 64-bit) using the
-[hldtux/ps3dev-sdl2](https://hub.docker.com/r/hldtux/ps3dev-sdl2) Docker
-image. Tested with CFW PS3 consoles and RPCS3.
+source, cross-compiling for the PS3's PPU (PowerPC 64-bit) using a local
+PSL1GHT/ps3dev toolchain. Tested with CFW PS3 consoles and RPCS3.
 
 ## Prerequisites
 
-- Docker, with the user in the `docker` group (or run commands via `sudo`).
+- A local ps3dev (PSL1GHT) install at `$PS3DEV` providing `ppu-gcc`, the
+  PSL1GHT SDK + codec portlibs (vorbis/ogg/mad/FLAC), and the host signing
+  tools (`ppu-strip`, `sprxlinker`, `make_self_npdrm`, `sfo.py`, `pkg.py`).
+  Put `$PS3DEV/ppu/bin` and `$PS3DEV/bin` on PATH.
 - The Quake 1 data files: a directory containing `pak0.pak` and `pak1.pak`
   (typically the `id1/` folder from a registered Quake 1 install).
-
-No local PS3 toolchain is required — everything runs inside the container.
 
 ## 1. Build the PS3 (PPU) executable
 
 From the repository root:
 
 ```bash
-sg docker -c "docker run --rm --platform linux/amd64 \
-  -v $(pwd):/build -w /build hldtux/ps3dev-sdl2 bash -c '
-    export PATH=/usr/local/ps3dev/ppu/bin:\$PATH
-    cmake -S . -B build-ps3 \
-      -DCMAKE_TOOLCHAIN_FILE=cmake/ps3.toolchain.cmake \
-      -DCMAKE_BUILD_TYPE=Release
-    cmake --build build-ps3 -j\$(nproc)
-  '"
+export PATH="$PS3DEV/ppu/bin:$PS3DEV/bin:$PATH"
+cmake -S . -B build-ps3 \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/ps3.toolchain.cmake \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-ps3 -j"$(nproc)"
 ```
 
 This produces `build-ps3/src/chocolate-quake` — an ELF 64-bit MSB
@@ -34,23 +31,16 @@ PowerPC executable, statically linked.
 For incremental rebuilds after the first configure:
 
 ```bash
-sg docker -c "docker run --rm --platform linux/amd64 \
-  -v $(pwd):/build -w /build hldtux/ps3dev-sdl2 bash -c '
-    export PATH=/usr/local/ps3dev/ppu/bin:\$PATH
-    cmake --build build-ps3 -j\$(nproc)
-  '"
+cmake --build build-ps3 -j"$(nproc)"
 ```
 
 ## 2. Build the `.pkg`
 
-Mount the Quake `id1/` data directory read-only at `/host-id1` inside
-the container, then run the packaging script:
+Run the packaging script, pointing it at the ELF and the Quake `id1/`
+data directory:
 
 ```bash
-sg docker -c "docker run --rm --platform linux/amd64 \
-  -v $(pwd):/build -w /build \
-  -v /path/to/id1:/host-id1:ro \
-  hldtux/ps3dev-sdl2 ./cmake/ps3/make_pkg.sh"
+bash cmake/ps3/make_pkg.sh build-ps3/src/chocolate-quake /path/to/id1 chocolate-quake.pkg
 ```
 
 Defaults (override by passing positional args to `make_pkg.sh`):
@@ -112,11 +102,6 @@ The top-level `CMakeLists.txt` links the PSL1GHT runtime libs directly:
 
 ## Notes / caveats
 
-- The container runs as root, so `build-ps3/` and `chocolate-quake.pkg`
-  will be root-owned. Reclaim with:
-  ```bash
-  sudo chown -R $USER:$USER build-ps3 chocolate-quake.pkg
-  ```
 - **Networking is stubbed.** `src/net/` links against a PS3 networking stub
   (`cmake/ps3/ps3_net_stub/`); every `PS3Net_*` call fails gracefully.
   LAN/online multiplayer will not work; single-player and demo playback

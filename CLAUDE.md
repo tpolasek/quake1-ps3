@@ -20,7 +20,10 @@ via the PSL1GHT pad API), `sound` (native PSL1GHT libaudio, int16-to-float32 DMA
 
 ## PS3 build & deploy
 
-Run **from the host** (the scripts shell out to Docker themselves):
+Requires a local ps3dev (PSL1GHT) install at `$PS3DEV` providing the `ppu-gcc`
+compilers, the PSL1GHT SDK + codec portlibs, and the host signing tools
+(`ppu-strip`, `sprxlinker`, `make_self_npdrm`, `sfo.py`, `pkg.py`). Put the
+binaries on PATH and run **from the host**:
 
 ```bash
 # Fast iteration: rebuild PPU binary, sign as NPDRM, upload EBOOT.BIN to PS3 via FTP.
@@ -29,12 +32,10 @@ Run **from the host** (the scripts shell out to Docker themselves):
 bash cmake/ps3/dev_deploy.sh
 
 # One-time full build (configures build-ps3/ from scratch):
-sg docker -c "docker run --rm --platform linux/amd64 -v \$(pwd):/build -w /build \
-    hldtux/ps3dev-sdl2 bash -c '
-    export PATH=/usr/local/ps3dev/ppu/bin:/usr/local/ps3dev/bin:\$PATH;
-    cmake -S . -B build-ps3 -G \"Unix Makefiles\" \
-        -DCMAKE_TOOLCHAIN_FILE=cmake/ps3.toolchain.cmake &&
-    cmake --build build-ps3 -j\$(nproc)'"
+export PATH="$PS3DEV/ppu/bin:$PS3DEV/bin:$PATH"
+cmake -S . -B build-ps3 -G "Unix Makefiles" \
+    -DCMAKE_TOOLCHAIN_FILE=cmake/ps3.toolchain.cmake
+cmake --build build-ps3 -j"$(nproc)"
 
 # Package a full installable .pkg (bundles id1/ + EBOOT.BIN):
 bash cmake/ps3/make_pkg.sh build-ps3/src/chocolate-quake <path-to-id1> chocolate-quake.pkg
