@@ -90,3 +90,9 @@ contributors. Special thanks to:
   [EmojiTwo](https://github.com/EmojiTwo/emojitwo) project, licensed under
   [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/), with modifications
   by [@fpiesche](https://github.com/fpiesche).
+
+## Acknowledgments
+
+Dragonfly Quake is a fork of [Chocolate Quake](https://github.com/Henrique194/chocolate-quake).
+All credit for the original source port goes to its authors — this project builds
+directly on their work.
