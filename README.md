@@ -66,7 +66,7 @@ Defaults (override via env vars): `PS3_FTP_HOST=192.168.1.245`,
 Bundle the executable with your `id1/` data into a `.pkg`:
 
 ```bash
-bash cmake/ps3/make_pkg.sh build-ps3/src/dragonfly-quake /path/to/id1 dragonfly-quake.pkg
+bash cmake/ps3/make_pkg.sh ./build-ps3/src/dragonfly-quake ~/.quake/id1/ dragonfly-quake.pkg
 ```
 
 ## Running

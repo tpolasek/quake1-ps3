@@ -96,12 +96,14 @@ qboolean Sys_XmbMenuOpen(void);
 // archives that make up the executable.
 //
 // SYS_TRACE is opt-in: it compiles to nothing unless SYS_TRACE_ACTIVE is
-// defined before sys.h is included. The PS3 log was getting drowned by
-// ~130 trace call sites spread across the codebase, making it hard to
-// debug specific subsystems. To enable tracing in a file, add
-// `#define SYS_TRACE_ACTIVE 1` at the top before any #include.
+// defined to a nonzero value before sys.h is included. The PS3 log was
+// getting drowned by ~130 trace call sites spread across the codebase,
+// making it hard to debug specific subsystems. To enable tracing in a
+// file, add `#define SYS_TRACE_ACTIVE 1` at the top before any #include.
+// To explicitly disable it (the default when undefined), set
+// `SYS_TRACE_ACTIVE 0`.
 #include <stdio.h>
-#ifdef SYS_TRACE_ACTIVE
+#if SYS_TRACE_ACTIVE
 #define SYS_TRACE(...) do { \
     fprintf(stdout, "[trace] " __VA_ARGS__); \
     fflush(stdout); \
