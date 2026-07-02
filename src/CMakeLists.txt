@@ -33,23 +33,7 @@ foreach(LIB ${LIBS})
 endforeach()
 
 
-if(WIN32)
-    string(CONCAT RC_VERSION
-        "${PROJECT_VERSION_MAJOR}, "
-        "${PROJECT_VERSION_MINOR}, "
-        "${PROJECT_VERSION_PATCH}, "
-        "0"
-    )
-    set(WIN_DIR "${CMAKE_SOURCE_DIR}/dist/win")
-    set(RC_NAME "quake.rc")
-    set(RC_INPUT_FILE "${WIN_DIR}/${RC_NAME}.in")
-    set(RC_OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${RC_NAME}")
-
-    configure_file(${RC_INPUT_FILE} ${RC_OUTPUT_FILE})
-    add_executable(${PACKAGE_TARNAME} WIN32 main.c ${RC_OUTPUT_FILE})
-else()
-    add_executable(${PACKAGE_TARNAME} main.c)
-endif()
+add_executable(${PACKAGE_TARNAME} main.c)
 
 target_include_directories(${PACKAGE_TARNAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -57,13 +41,3 @@ target_include_directories(${PACKAGE_TARNAME} PRIVATE
 )
 
 target_link_libraries(${PACKAGE_TARNAME} ${LIBS})
-if(WIN32)
-    target_link_libraries(${PACKAGE_TARNAME} ws2_32)
-endif()
-
-if(MSVC)
-    set_target_properties(${PACKAGE_TARNAME} PROPERTIES
-        LINK_FLAGS
-        "/MANIFEST:NO"
-    )
-endif()

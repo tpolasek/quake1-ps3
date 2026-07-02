@@ -5,7 +5,7 @@ original software renderer at its original 320x200 resolution. The port targets 
 homebrew exclusively (PSL1GHT/PS3DEV toolchain, powerpc64-ps3-elf target) and talks to
 the hardware through native PSL1GHT APIs -- RSX for video, libaudio for sound, the pad
 API for input, and `sysGetSystemTime` for the frame clock. The earlier desktop
-(Linux/macOS/Windows) builds are no longer supported.
+(Linux/macOS/Windows) builds have been removed.
 
 ## Source layout
 
@@ -96,8 +96,9 @@ To clear the log between runs, just relaunch the game -- `Sys_OpenLog` reopens w
 
 ## Desktop build
 
-Not supported. The port is PS3-only: the subsystem libraries talk directly to PSL1GHT,
+Removed. The port is PS3-only: the subsystem libraries talk directly to PSL1GHT,
 the end-screen module and keyboard/mouse input were deleted, and the link line binds
 the runtime libs directly (`-lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lm`).
-The top-level `CMakeLists.txt` retains a desktop `else` branch referencing vcpkg for
-historical context, but it no longer produces a working binary. Use the PS3 build above.
+The top-level `CMakeLists.txt` no longer has a desktop branch, the vcpkg submodule
+and manifest are gone, and the desktop-only CI workflow has been deleted. Use the
+PS3 build above.

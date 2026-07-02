@@ -20,68 +20,31 @@ set(PACKAGE_VERSION ${PROJECT_VERSION})
 set(PACKAGE_STRING "${PROJECT_NAME} ${PROJECT_VERSION}")
 set(PACKAGE_COPYRIGHT "Copyright (C) 1996-${CURRENT_YEAR}")
 set(PACKAGE_LICENSE "GNU General Public License, version 3")
-set(APPSTREAM_APP_ID "io.github.henrique194.chocolate-quake")
 
-# Find math library
-find_library(MATH m)
-if(MATH)
-    link_libraries(${MATH})
-endif()
+# PS3 (PPU/PSL1GHT) path: native PSL1GHT APIs. PS3 is the only supported
+# target; the toolchain file (cmake/ps3.toolchain.cmake) sets
+# DRAGONFLY_QUAKE_PS3=ON so platform branches in source (e.g.
+# Sys_GetDefaultBaseDir in src/sys) pick the PS3 layout.
+add_compile_definitions(DRAGONFLY_QUAKE_PS3=1)
 
-if(DRAGONFLY_QUAKE_PS3)
-	# PS3 (PPU/PSL1GHT) path: native PSL1GHT APIs.
-	#
-	# Expose DRAGONFLY_QUAKE_PS3 to source so platform branches (e.g.
-	# Sys_GetDefaultBaseDir in src/sys) can pick the PS3 layout.
-	add_compile_definitions(DRAGONFLY_QUAKE_PS3=1)
+# PSL1GHT SDK headers (sysutil/sysutil.h, rsx/*.h, audio/audio.h,
+# io/pad.h, etc.) live in ppu/include; codec headers (vorbis/vorbisfile.h,
+# mad.h, FLAC/stream_decoder.h) live in the portlibs include dir. Neither
+# is on the compiler's default search path.
+include_directories("${PS3DEV}/portlibs/ppu/include" "${PS3DEV}/ppu/include")
 
-	# PSL1GHT SDK headers (sysutil/sysutil.h, rsx/*.h, audio/audio.h,
-	# io/pad.h, etc.) live in ppu/include; codec headers (vorbis/vorbisfile.h,
-	# mad.h, FLAC/stream_decoder.h) live in the portlibs include dir. Neither
-	# is on the compiler's default search path.
-	include_directories("${PS3DEV}/portlibs/ppu/include" "${PS3DEV}/ppu/include")
+# PSL1GHT runtime libraries, required by the native backends. Applied
+# globally so every target links them. -lm is required by the codec libs
+# (vorbis/FLAC); it lives in the powerpc64-ps3-elf sysroot, not the
+# portlibs prefix.
+link_libraries(-lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lm)
 
-	# PSL1GHT runtime libraries, required by the native backends. Applied
-	# globally so every target links them. -lm is
-	# required by the codec libs (vorbis/FLAC); find_library(MATH m) at the
-	# top of this file can't see it because CMAKE_FIND_ROOT_PATH points at
-	# the install prefix, not the powerpc64-ps3-elf sysroot where libm.a lives.
-	link_libraries(-lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lm)
-
-	find_library(VORBIS_LIBRARY vorbis REQUIRED)
-	find_library(VORBISFILE_LIBRARY vorbisfile REQUIRED)
-	find_library(MAD_LIBRARY mad REQUIRED)
-	find_library(FLAC_LIBRARY FLAC REQUIRED)
-	find_library(OGG_LIBRARY ogg REQUIRED)
-else()
-	if(UNIX AND NOT APPLE)
-		find_library(VORBIS_LIBRARY vorbis REQUIRED)
-		find_library(VORBISFILE_LIBRARY vorbisfile REQUIRED)
-		find_library(MAD_LIBRARY mad REQUIRED)
-		find_library(FLAC_LIBRARY FLAC REQUIRED)
-		find_library(OGG_LIBRARY ogg REQUIRED)
-	else()
-		find_package(Vorbis CONFIG REQUIRED)
-		find_package(mad CONFIG REQUIRED)
-		find_package(FLAC CONFIG REQUIRED)
-	endif()
-endif()
+find_library(VORBIS_LIBRARY vorbis REQUIRED)
+find_library(VORBISFILE_LIBRARY vorbisfile REQUIRED)
+find_library(MAD_LIBRARY mad REQUIRED)
+find_library(FLAC_LIBRARY FLAC REQUIRED)
+find_library(OGG_LIBRARY ogg REQUIRED)
 
 configure_file(config.h.in config.h)
 
 add_subdirectory("src")
-
-if (UNIX AND NOT APPLE)
-	install(FILES ${CMAKE_BINARY_DIR}/src/${PACKAGE_TARNAME}
-		DESTINATION bin
-		PERMISSIONS WORLD_READ WORLD_EXECUTE GROUP_READ GROUP_EXECUTE OWNER_READ OWNER_WRITE OWNER_EXECUTE)
-	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux/${APPSTREAM_APP_ID}.svg
-		DESTINATION share/icons/hicolor/scalable/apps
-		PERMISSIONS WORLD_READ GROUP_READ OWNER_READ OWNER_WRITE)
-	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux/${APPSTREAM_APP_ID}.desktop
-		DESTINATION share/applications
-		PERMISSIONS WORLD_READ GROUP_READ OWNER_READ OWNER_WRITE)
-	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/dist/linux/${APPSTREAM_APP_ID}.metainfo.xml
-		DESTINATION share/metainfo
-		PERMISSIONS WORLD_READ GROUP_READ OWNER_READ OWNER_WRITE)
-endif()
