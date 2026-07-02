@@ -48,6 +48,22 @@ cmake --build build-ps3 -j"$(nproc)"
 This produces `build-ps3/src/dragonfly-quake` — a statically-linked 64-bit
 PowerPC ELF.
 
+## Package an installable .pkg
+
+Bundle the executable with your `id1/` data into a `.pkg`:
+
+```bash
+bash cmake/ps3/make_pkg.sh ./build-ps3/src/dragonfly-quake ~/.quake/id1/ dragonfly-quake.pkg
+```
+
+To ship the executable only — e.g. when `id1/` is already installed on the
+console — omit `<id1_dir>` (pass an empty placeholder if you still want to set
+the output path):
+
+```bash
+bash cmake/ps3/make_pkg.sh ./build-ps3/src/dragonfly-quake "" dragonfly-quake-no-data.pkg
+```
+
 ## Fast iteration (hotswap EBOOT.BIN over FTP)
 
 After the first full build, you can rebuild, re-sign, and upload just the
@@ -60,14 +76,6 @@ bash cmake/ps3/dev_deploy.sh
 Defaults (override via env vars): `PS3_FTP_HOST=192.168.1.245`,
 `PS3_FTP_USER=anonymous`, `PS3_FTP_PASS=`,
 `PS3_INSTALL_DIR=/dev_hdd0/game/CHQK00001/USRDIR`.
-
-## Package an installable .pkg
-
-Bundle the executable with your `id1/` data into a `.pkg`:
-
-```bash
-bash cmake/ps3/make_pkg.sh ./build-ps3/src/dragonfly-quake ~/.quake/id1/ dragonfly-quake.pkg
-```
 
 ## Running
 
