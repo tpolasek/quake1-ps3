@@ -1,4 +1,6 @@
 # Dragonfly Quake (PS3 Quake I Port)
+<img width="639" height="400" alt="dragonfly_quake" src="https://github.com/user-attachments/assets/ca66afe6-d34c-4ac0-a41c-c02656b04e6e" />
+
 
 Dragonfly Quake is a faithful source port of Quake 1 (the original DOS release)
 for **PlayStation 3 homebrew**. Inspired by Chocolate Doom, it preserves the
