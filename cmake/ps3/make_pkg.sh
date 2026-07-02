@@ -38,9 +38,13 @@ PKG_DIR="${WORK}/pkg"
 USRDIR="${PKG_DIR}/USRDIR"
 mkdir -p "${USRDIR}"
 
-# Total step count depends on whether id1/ is bundled.
-TOTAL=5
-[ -n "${ID1_DIR}" ] && TOTAL=6
+# XMB icon: always bundled. Resolved relative to this script so it works
+# regardless of the caller's CWD.
+ICON_PNG="$(dirname "$0")/ICON0.PNG"
+
+# Total step count depends on whether id1/ is bundled (icon is always bundled).
+TOTAL=6
+[ -n "${ID1_DIR}" ] && TOTAL=$((TOTAL+1))
 N=0
 step() { N=$((N+1)); echo "[${N}/${TOTAL}] $1"; }
 
@@ -49,6 +53,7 @@ step "Verifying inputs"
 if [ -n "${ID1_DIR}" ]; then
     [ -f "${ID1_DIR}/pak0.pak" ] || { echo "missing pak0.pak in ${ID1_DIR}" >&2; exit 1; }
 fi
+[ -f "${ICON_PNG}" ] || { echo "missing icon: ${ICON_PNG}" >&2; exit 1; }
 
 step "Stripping + sprxlinker -> ${WORK}/dragonfly-quake.elf"
 cp "${ELF}" "${WORK}/cq.raw"
@@ -63,6 +68,9 @@ if [ -n "${ID1_DIR}" ]; then
     mkdir -p "${USRDIR}/id1"
     cp -a "${ID1_DIR}/." "${USRDIR}/id1/"
 fi
+
+step "Copying icon -> pkg/ICON0.PNG"
+cp -a "${ICON_PNG}" "${PKG_DIR}/ICON0.PNG"
 
 step "Generating PARAM.SFO"
 SFO_XML="${WORK}/sfo.xml"

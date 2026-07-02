@@ -45,15 +45,19 @@ bash cmake/ps3/make_pkg.sh build-ps3/src/dragonfly-quake /path/to/id1 dragonfly-
 
 Defaults (override by passing positional args to `make_pkg.sh`):
 - ELF input: `build-ps3/src/dragonfly-quake`
-- id1 source: `/host-id1`
+- id1 source: none — omit `<id1_dir>` to ship `EBOOT.BIN` only (e.g. when
+  the data is already installed on the console)
 - Output: `dragonfly-quake.pkg`
+- XMB icon: `cmake/ps3/ICON0.PNG` (always bundled; resolved relative to the
+  script)
 
 The script:
 1. `ppu-strip` + `sprxlinker` on the ELF
 2. `make_self_npdrm` -> `pkg/USRDIR/EBOOT.BIN`
-3. Copies the `id1/` data into `pkg/USRDIR/id1/`
-4. Generates `PARAM.SFO` from the ps3dev `sfo.xml` template
-5. `pkg.py` -> final `dragonfly-quake.pkg`
+3. Copies the `id1/` data into `pkg/USRDIR/id1/` (skipped if no `<id1_dir>`)
+4. Copies `ICON0.PNG` into `pkg/` for the XMB icon
+5. Generates `PARAM.SFO` from the ps3dev `sfo.xml` template
+6. `pkg.py` -> final `dragonfly-quake.pkg`
 
 ### Package metadata
 
@@ -82,6 +86,7 @@ top of `cmake/ps3/make_pkg.sh`.
 | `cmake/ps3/ps3_net_stub/`           | PS3 networking stub (no usable net stack |
 |                                     | on ps3dev); `src/net/` links here        |
 | `cmake/ps3/make_pkg.sh`             | Packaging script                         |
+| `cmake/ps3/ICON0.PNG`               | XMB icon (320x176 PNG) bundled into pkg  |
 
 ### Native PSL1GHT backends
 
